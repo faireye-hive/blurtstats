@@ -5,29 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Blurt Rewards Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/modern-normalize/modern-normalize.css" rel="stylesheet">
-  <style>
-    :root{--bg:#0f1724;--card:#0b1220;--muted:#9aa4b2;--accent:#7dd3fc}
-    body{font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial; background:linear-gradient(180deg,#071127 0%, #071827 100%); color:#e6eef6; padding:24px}
-    .container{max-width:1100px;margin:0 auto}
-    header{display:flex;gap:16px;align-items:center;margin-bottom:20px}
-    h1{font-size:20px;margin:0}
-    .controls{display:flex;gap:10px;flex-wrap:wrap}
-    input,select,button{background:#081226;border:1px solid #132033;color:var(--muted);padding:10px;border-radius:8px}
-    button{cursor:pointer;color:#042; background:var(--accent); border: none}
-    .grid{display:grid;grid-template-columns:1fr 420px;gap:16px}
-    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:16px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
-    .small{font-size:13px;color:var(--muted)}
-    .chart-wrap{height:320px}
-    ul.stats{list-style:none;padding:0;margin:0;display:flex;gap:12px}
-    ul.stats li{background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;flex:1;text-align:center}
-    footer{margin-top:18px;color:var(--muted);font-size:13px}
-    .loading{opacity:0.8}
-    .warn{color:#ffd580}
-    .example{color:#9fc3ff;font-size:13px}
-    .legend{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .legend .item{display:flex;gap:6px;align-items:center}
-    .dot{width:10px;height:10px;border-radius:50%}
-  </style>
+  <link href="style.css" rel="stylesheet">
 </head>
 <body>
   <div class="container">
@@ -39,7 +17,7 @@
     <div class="controls card">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <label class="small">Conta:</label>
-        <input id="accountInput" placeholder="ex: seuusuario" />
+        <input id="accountInput" value="bgo" placeholder="ex: seuusuario" />
         <label class="small">RPC / nodo:</label>
         <input id="rpcInput" style="min-width:360px" value="https://rpc.blurt.world" placeholder="https://rpc.blurt.world (ou outro)" />
         <button id="fetchBtn">Buscar</button>
@@ -125,157 +103,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script>
-    // --- Utilitários ---
-    const $ = id => document.getElementById(id);
-    const fmt = (s) => s ? s.replace(/ BLURT| BLURT_POWER| BLURT\$| BLURT/g,'') : '0.000';
-
-    function rpcCall(rpc, method, params) {
-      return fetch(rpc, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({jsonrpc:'2.0', id:1, method, params})
-      }).then(r => r.json()).then(j => {
-        if (j.error) throw new Error(JSON.stringify(j.error));
-        return j.result;
-      });
-    }
-
-    function log(...t){ $('log').textContent += [...t].join(' ')+'\n'; }
-
-    function toDateKey(ts){ const d=new Date(ts); d.setHours(0,0,0,0); return d.toISOString().slice(0,10); }
-
-    // --- Main flow ---
-    let chart;
-
-    async function fetchAndRender(){
-      const account = $('accountInput').value.trim();
-      const rpc = $('rpcInput').value.trim() || 'https://rpc.blurt.world';
-      const postLimit = parseInt($('postLimit').value,10) || 100;
-      if(!account){ alert('Informe a conta.'); return; }
-      $('updatedAt').textContent = 'Buscando...';
-      $('log').textContent = '';
-
-      try{
-        log('RPC:', rpc);
-        // 1) get_account_history recent ops (pegamos 1000 ops)
-        log('Buscando account_history...');
-        const history = await rpcCall(rpc, 'condenser_api.get_account_history', [account, -1, 1000]);
-        log('ops recebidas:', history.length);
-
-        const now = new Date();
-        const daysMapCuration = {};
-        const daysMapAuthor = {};
-        for(let i=0;i<30;i++){ const d=new Date(); d.setDate(now.getDate()-i); const k=d.toISOString().slice(0,10); daysMapCuration[k]=0; daysMapAuthor[k]=0; }
-
-        history.forEach(entry => {
-          // entry = [index, [op_name, op_data]]
-          try{
-            const op = entry[1][0];
-            const data = entry[1][1];
-            if(op === 'curation_reward' || op === 'author_reward'){
-              // ambos costumam ter 'reward' string e 'timestamp' ou usam block_time from global? We'll use timestamp if present else skip
-              const rewardStr = data.reward || data.value || data.reward_steem || data.reward_blurt || data.rewards || '0.000 BLURT';
-              // timestamp: some nodes include 'timestamp' or 'time' or use block info, fallback to now
-              const ts = data.timestamp || data.time || entry[0] || new Date().toISOString();
-              const key = toDateKey(ts);
-              const val = parseFloat(fmt(rewardStr));
-              if(op === 'curation_reward' && key in daysMapCuration) daysMapCuration[key] += val;
-              if(op === 'author_reward' && key in daysMapAuthor) daysMapAuthor[key] += val;
-            }
-          }catch(e){ /* ignore entries we can't parse */ }
-        });
-
-        // totals
-        const totalCuration = Object.values(daysMapCuration).reduce((a,b)=>a+b,0);
-        const totalAuthor = Object.values(daysMapAuthor).reduce((a,b)=>a+b,0);
-
-        $('totalCuration').textContent = totalCuration.toFixed(3) + ' BLURT';
-        $('totalAuthor').textContent = totalAuthor.toFixed(3) + ' BLURT';
-
-        // 2) pending author rewards: fetch recent posts by account and check cashout_time
-        log('Buscando posts via get_discussions_by_blog...');
-        const discussions = await rpcCall(rpc, 'condenser_api.get_discussions_by_blog', [{tag: account, limit: postLimit}]);
-        log('posts obtidos:', discussions.length);
-
-        const nowMs = Date.now();
-        const sevenDaysMs = 7*24*60*60*1000;
-        let pendingAuthorSum = 0;
-        let pendingCurationEstimate = 0;
-
-        // For each discussion, call get_content to read pending_payout_value and cashout_time
-        for(const d of discussions){
-          try{
-            const content = await rpcCall(rpc, 'condenser_api.get_content', [d.author, d.permlink]);
-            if(!content) continue;
-            const pendingStr = content.pending_payout_value || content.pending_payout || '0.000 BLURT';
-            const cashout = content.cashout_time || content.beneficiary_payout_value_time || content.last_payout; // fallback
-            const pendingVal = parseFloat(fmt(pendingStr));
-            const cashMs = new Date(cashout).getTime();
-            if(!isNaN(cashMs) && cashMs > nowMs && (cashMs - nowMs) <= sevenDaysMs){
-              pendingAuthorSum += pendingVal;
-              // estimated curation portion (heuristic)
-              const curationRatio = 0.25; // configuração
-              pendingCurationEstimate += pendingVal * curationRatio;
-            }
-          }catch(e){ log('erro get_content', d.author, d.permlink, e.message); }
-        }
-
-        $('pendingAuthor').textContent = pendingAuthorSum.toFixed(3) + ' BLURT';
-        $('pendingCuration').textContent = pendingCurationEstimate.toFixed(3) + ' BLURT (estim.)';
-
-        // 3) prepare chart for last 30 days
-        const labels = Object.keys(daysMapAuthor).sort();
-        const dataAuthor = labels.map(l=>daysMapAuthor[l]);
-        const dataCuration = labels.map(l=>daysMapCuration[l]);
-
-        renderChart(labels, dataAuthor, dataCuration);
-
-        $('updatedAt').textContent = new Date().toLocaleString();
-
-      }catch(err){
-        log('Erro geral:', err.message || err);
-        alert('Erro: ' + (err.message || err));
-        $('updatedAt').textContent = 'Erro';
-      }
-    }
-
-    function renderChart(labels, authorData, curationData){
-      const ctx = $('rewardsChart');
-      if(chart) chart.destroy();
-      chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels,
-          datasets:[
-            {label:'Author received', data: authorData, tension:0.3, borderWidth:2, pointRadius:3, borderColor:'#34d399', backgroundColor:'rgba(52,211,153,0.06)'},
-            {label:'Curation received', data: curationData, tension:0.3, borderWidth:2, pointRadius:3, borderColor:'#60a5fa', backgroundColor:'rgba(96,165,250,0.06)'}
-          ]
-        },
-        options:{scales:{y:{beginAtZero:true}}, plugins:{legend:{labels:{usePointStyle:true}}}}
-      });
-    }
-
-    // CSV export
-    function downloadCsv(){
-      if(!chart) { alert('Execute a busca antes de exportar.'); return; }
-      const labels = chart.data.labels;
-      const aData = chart.data.datasets[0].data;
-      const cData = chart.data.datasets[1].data;
-      let csv = 'date,author,curation\n';
-      for(let i=0;i<labels.length;i++) csv += `${labels[i]},${aData[i]},${cData[i]}\n`;
-      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href=url; a.download = 'blurt_rewards_30d.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    }
-
-    // --- events ---
-    document.getElementById('fetchBtn').addEventListener('click', fetchAndRender);
-    document.getElementById('exportCsv').addEventListener('click', downloadCsv);
-
-    // prefill example (remova se preferir)
-    $('accountInput').value = '';
-    $('rpcInput').value = '';
-  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@blurtfoundation/blurtjs@latest/dist/blurt.min.js" integrity="sha384-zAI8cEC42mrdg7eYmWIBrq/4dlEyQs0KgbXbI20wQo91MENslp5+bkSBGJynlR1t" crossorigin="anonymous"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
