@@ -1,9 +1,6 @@
  // Importa todas as funções e utilitários necessários do blockchain.js
-import { $, fmt, log, getRewardHistory, getPendingRewards,getPendingRewards2,getPendingRewards3 } from './blockchain.js';
-
-//getRewardHistory('bgo', 'https://rpc.blurt.world');
-//getPendingRewards2('bgo', 'https://rpc.blurt.world');
-//getPendingRewards3('bgo', 'https://rpc.blurt.world');
+import { getRewardHistory, getPendingRewards} from './blockchain.js';
+import {$, fmt, log } from './utils.js'
 
 // Variável global para a instância do gráfico
 let chart;
