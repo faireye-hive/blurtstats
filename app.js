@@ -13,7 +13,7 @@ let currentLang = 'pt';
 /**
  * Função para obter a tradução de textos dinâmicos.
  */
-function getTranslation(key) {
+export function getTranslation(key) {
     if (currentLang === 'pt') return key; 
     const t = translations[key];
     return (t && t[currentLang]) ? t[currentLang] : key;
@@ -356,7 +356,7 @@ function handleRpcChange() {
 // Função para lidar com a mudança de idioma
 function handleLangChange(e) {
     currentLang = e.target.value;
-    sessionStorage.setItem('preferredLang', currentLang); // Salva no SessionStorage
+    localStorage.setItem('preferredLang', currentLang); // Salva no SessionStorage
     translate(currentLang); // Traduz a interface estática
     
     if (chart && chart.data) {
@@ -394,7 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const langSelect = $('langSelect'); 
     if (langSelect) {
         // Verifica se há um idioma salvo no SessionStorage
-        const savedLang = sessionStorage.getItem('preferredLang');
+        const savedLang = localStorage.getItem('preferredLang');
         if (savedLang) {
             currentLang = savedLang;
             langSelect.value = savedLang;

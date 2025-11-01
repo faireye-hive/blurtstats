@@ -577,8 +577,165 @@ export const translations = {
         'es': 'Autor Pendiente (7d, diario)',
         'fr': 'Auteur en Attente (7j, quotidien)',
         'ja': '保留中の著者報酬 (7日間、日次)',
-    },
+    },  
+    'Buscando account_history...': {
+    "en": "Fetching account_history...",
+    "pl": "Pobieranie historii konta...",
+    "de": "Kontoverlauf wird abgerufen...",
+    "zh": "正在获取账户历史记录...",
+    "es": "Buscando historial de cuenta...",
+    "fr": "Récupération de l'historique du compte...",
+    "ja": "アカウント履歴を取得中..."
+  },
+  'Buscando recompensas pendentes (posts e comentários)...': {
+    "en": "Fetching pending rewards (posts and comments)...",
+    "pl": "Pobieranie oczekujących nagród (posty i komentarze)...",
+    "de": "Abrufen ausstehender Belohnungen (Beiträge und Kommentare)...",
+    "zh": "正在获取待定奖励（帖子和评论）...",
+    "es": "Buscando recompensas pendientes (publicaciones y comentarios)...",
+    "fr": "Récupération des récompenses en attente (articles et commentaires)...",
+    "ja": "保留中の報酬を取得中（投稿とコメント）..."
+  },
+  '--- Iniciando busca por POSTS pendentes ---':{
+    "en": "--- Starting search for pending POSTS ---",
+    "pl": "--- Rozpoczynanie wyszukiwania oczekujących POSTÓW ---",
+    "de": "--- Suche nach ausstehenden BEITRÄGEN wird gestartet ---",
+    "zh": "--- 开始搜索待处理的帖子 ---",
+    "es": "--- Iniciando búsqueda de PUBLICACIONES pendientes ---",
+    "fr": "--- Démarrage de la recherche des ARTICLES en attente ---",
+    "ja": "--- 保留中の投稿の検索を開始 ---"
+  },
+  '--- Iniciando busca por COMENTÁRIOS pendentes ---': {
+    "en": "--- Starting search for pending COMMENTS ---",
+    "pl": "--- Rozpoczynanie wyszukiwania oczekujących KOMENTARZY ---",
+    "de": "--- Suche nach ausstehenden KOMMENTAREN wird gestartet ---",
+    "zh": "--- 开始搜索待处理的评论 ---",
+    "es": "--- Iniciando búsqueda de COMENTARIOS pendientes ---",
+    "fr": "--- Démarrage de la recherche des COMMENTAIRES en attente ---",
+    "ja": "--- 保留中のコメントの検索を開始 ---"
+  },
+  'Busca de pendentes concluída.':{
+    "en": "Pending search completed.",
+    "pl": "Wyszukiwanie oczekujących zakończone.",
+    "de": "Suche nach ausstehenden abgeschlossen.",
+    "zh": "待处理搜索完成。",
+    "es": "Búsqueda de pendientes completada.",
+    "fr": "Recherche des éléments en attente terminée.",
+    "ja": "保留中の検索が完了しました。"
+  },
+  'Buscando histórico de VOTOS dos últimos 7 dias...': {
+    "en": "Fetching VOTES history from the last 7 days...",
+    "pl": "Pobieranie historii GŁOSÓW z ostatnich 7 dni...",
+    "de": "Abrufen der STIMMEN-Historie der letzten 7 Tage...",
+    "zh": "正在获取过去7天的投票历史...",
+    "es": "Buscando historial de VOTOS de los últimos 7 días...",
+    "fr": "Récupération de l'historique des VOTES des 7 derniers jours...",
+    "ja": "過去7日間の投票履歴を取得中..."
+  },
+  'Buscando Vesting Share Price (BLURT/VESTS)...': {
+    "en": "Fetching Vesting Share Price (BLURT/VESTS)...",
+    "pl": "Pobieranie ceny udziałów Vesting (BLURT/VESTS)...",
+    "de": "Abrufen des Vesting-Anteilspreises (BLURT/VESTS)...",
+    "zh": "正在获取锁仓股份价格（BLURT/VESTS）...",
+    "es": "Buscando precio de participación en vesting (BLURT/VESTS)...",
+    "fr": "Récupération du prix des parts de blocage (BLURT/VESTS)...",
+    "ja": "ベスティングシェア価格 (BLURT/VESTS) を取得中..."
+  },
+  'Buscando interações sociais (votos recebidos, votos dados, comentários)...':{
+    "en": "Fetching social interactions (received votes, given votes, comments)...",
+    "pl": "Pobieranie interakcji społecznych (otrzymane głosy, oddane głosy, komentarze)...",
+    "de": "Abrufen sozialer Interaktionen (erhaltene Stimmen, abgegebene Stimmen, Kommentare)...",
+    "zh": "正在获取社交互动（收到的投票、发出的投票、评论）...",
+    "es": "Buscando interacciones sociales (votos recibidos, votos dados, comentarios)...",
+    "fr": "Récupération des interactions sociales (votes reçus, votes donnés, commentaires)...",
+    "ja": "ソーシャルインタラクションを取得中（受け取った投票、送った投票、コメント）..."
+  },
+'Buscando dados da conta': {
+    "en": "Fetching account data",
+    "pl": "Pobieranie danych konta",
+    "de": "Kontodaten werden abgerufen",
+    "zh": "正在获取账户数据",
+    "es": "Buscando datos de la cuenta",
+    "fr": "Récupération des données du compte",
+    "ja": "アカウントデータを取得中"
+  },
+  'Votos dados (7d, contagem):': {
+    "en": "Votes given (7d, count):",
+    "pl": "Oddane głosy (7d, liczba):",
+    "de": "Abgegebene Stimmen (7T, Anzahl):",
+    "zh": "已投赞成票 (7天, 计数):",
+    "es": "Votos dados (7d, recuento):",
+    "fr": "Votes donnés (7j, décompte) :",
+    "ja": "付与された投票 (7日間、カウント):"
+  },
+  'Votos recebidos:': {
+    "en": "Votes received:",
+    "pl": "Otrzymane głosy:",
+    "de": "Erhaltene Stimmen:",
+    "zh": "收到赞成票:",
+    "es": "Votos recibidos:",
+    "fr": "Votes reçus :",
+    "ja": "受信した投票:"
+  },
+  'ops recebidas:': {
+    "en": "ops received:",
+    "pl": "odebrane operacje:",
+    "de": "erhaltene Operationen:",
+    "zh": "收到的操作:",
+    "es": "operaciones recibidas:",
+    "fr": "opérations reçues :",
+    "ja": "受信したオペレーション:"
+  },
+  'Erro ao processar item:': {
+    "en": "Error processing item:",
+    "pl": "Błąd przetwarzania elementu:",
+    "de": "Fehler bei der Verarbeitung des Elements:",
+    "zh": "处理项目时出错:",
+    "es": "Error al procesar el elemento:",
+    "fr": "Erreur lors du traitement de l'élément :",
+    "ja": "アイテム処理エラー:"
+  },
+  'Votos recentes (7d) encontrados:': {
+    "en": "Recent votes (7d) found:",
+    "pl": "Znaleziono ostatnie głosy (7d):",
+    "de": "Kürzliche Stimmen (7T) gefunden:",
+    "zh": "找到近期投票 (7天):",
+    "es": "Votos recientes (7d) encontrados:",
+    "fr": "Votes récents (7j) trouvés :",
+    "ja": "最近の投票 (7日間) が見つかりました:"
+  },
+'Estimativa de recompensa de curadoria (7d):': {
+    "en": "Curation reward estimate (7d):",
+    "pl": "Szacowana nagroda za kurację (7d):",
+    "de": "Schätzung der Kurationsbelohnung (7T):",
+    "zh": "策展奖励预估 (7天):",
+    "es": "Estimación de recompensa por curación (7d):",
+    "fr": "Estimation de récompense de curation (7j) :",
+    "ja": "キュレーション報酬の見積もり (7日間):"
+  },
+  'Parâmetros inválidos: é necessário account, rpc e rpcCallFn (função).': {
+    "en": "Invalid parameters: account, rpc, and rpcCallFn (function) are required.",
+    "pl": "Nieprawidłowe parametry: wymagane są account, rpc i rpcCallFn (funkcja).",
+    "de": "Ungültige Parameter: account, rpc und rpcCallFn (Funktion) sind erforderlich.",
+    "zh": "参数无效: 需要 account、rpc 和 rpcCallFn (函数)。",
+    "es": "Parámetros inválidos: se requieren account, rpc y rpcCallFn (función).",
+    "fr": "Paramètres invalides : account, rpc et rpcCallFn (fonction) sont requis.",
+    "ja": "無効なパラメーター: account, rpc, および rpcCallFn (関数) が必要です。"
+  }
 };
+
+/* template
+,
+  '':{
+    "en": "",
+    "pl": "",
+    "de": "",
+    "zh": "",
+    "es": "",
+    "fr": "",
+    "ja": ""
+  }
+ */
 
 /**
  * A função principal para traduzir o conteúdo.

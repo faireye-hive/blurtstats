@@ -1,6 +1,7 @@
 // --- Utilitários (Movidos de script.js) ---
 
 import {$, fmt, log, toDateKey } from './utils.js'
+import { getTranslation } from './app.js';
 
 let cache={
   vestingSharePrice: null,
@@ -41,15 +42,12 @@ export function rpcCall(rpc, method, params) {
  * @returns {Promise<{daysMapCuration: object, daysMapAuthor: object}>} Mapas de recompensas por dia.
  */
 export async function getRewardHistory(account, rpc) {
-    log('Buscando account_history...');
+    log(getTranslation('Buscando account_history...'));
     // Busca as últimas 1000 operações
     //const history = await rpcCall(rpc, 'condenser_api.get_account_history', [account, -1, 1000]);
 
     const history = await getAccountHistoryLast30Days(account, rpc);
-    log('ops recebidas:', history.length);
-
-    //console.log('history');
-    console.log(history);
+    log(getTranslation('ops recebidas:'), history.length);
 
     const now = new Date();
     const daysMapCuration = {};
@@ -118,9 +116,6 @@ async function fetchRecursivePending(rpc, apiMethod, query, nowMs, sevenDaysMs, 
 
         const results = await rpcCall(rpc, apiMethod, [currentQuery]);
 
-
-        console.log(results);
-
         if (!results || results.length === 0) {
             shouldFetchMore = false;
             break;
@@ -132,21 +127,14 @@ async function fetchRecursivePending(rpc, apiMethod, query, nowMs, sevenDaysMs, 
                 const pendingStr = item.pending_payout_value || '0.000 BLURT';
                 const cashout = item.cashout_time; // ex: "2025-11-01T12:00:00"
                 const cashMs = new Date(cashout).getTime();
-                console.log("tA INDOOOOOOOOOOOO?");
 
                 const createdbase = new Date(item.created).getTime();
 
-                console.log(item);
-                
                 // 1. Verifica se o post ainda está pendente E dentro da janela de 7 dias
                 if (!isNaN(createdbase) && (createdbase+setedias) >= DataNow) {
 
-                    console.log("Aqui tA PASSANDO?");
-
                     if(item &&item.author === account && (createdbase+setedias) >= DataNow){
                         if(apiMethod === "condenser_api.get_discussions_by_blog"){
-                          console.log("que ta acontenceod");
-                          console.log(item);
                           cache.TotalPedingResultPost.push(item);
                         } else if(apiMethod === "condenser_api.get_discussions_by_comments"){
                           cache.TotalPedingResultComment.push(item);
@@ -168,7 +156,7 @@ async function fetchRecursivePending(rpc, apiMethod, query, nowMs, sevenDaysMs, 
                 }
 
             } catch (e) {
-                log('Erro ao processar item:', item.author, item.permlink, e.message);
+                log(getTranslation('Erro ao processar item:'), item.author, item.permlink, e.message);
             }
         }
 
@@ -185,11 +173,6 @@ async function fetchRecursivePending(rpc, apiMethod, query, nowMs, sevenDaysMs, 
             shouldFetchMore = false;
         }
     }
-    console.log('cache.TotalPedingResultPost');
-    console.log(cache.TotalPedingResultPost);
-    
-        console.log("cache.TotalPedingResultComment");
-            console.log(cache.TotalPedingResultComment);
 
     return { totalPendingAuthor, totalPendingCuration };
 }
@@ -205,7 +188,7 @@ async function fetchRecursivePending(rpc, apiMethod, query, nowMs, sevenDaysMs, 
 export async function getPendingRewards(account, rpc) {
 
     
-    log('Buscando recompensas pendentes (posts e comentários)...');
+    log(getTranslation('Buscando recompensas pendentes (posts e comentários)...'));
     
     const nowMs = Date.now();
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
@@ -218,17 +201,11 @@ export async function getPendingRewards(account, rpc) {
     // 2. Query para COMENTÁRIOS (get_discussions_by_comments)
     const commentsQuery = {start_author: account,limit: queryLimit,start_permlink: undefined,};
 
-    log('--- Iniciando busca por POSTS pendentes ---');
+    log(getTranslation('--- Iniciando busca por POSTS pendentes ---'));
     const discussionsResults = await fetchRecursivePending( rpc, 'condenser_api.get_discussions_by_blog', blogQuery, nowMs, sevenDaysMs, curationRatio,account);
 
-    log('--- Iniciando busca por COMENTÁRIOS pendentes ---');
+    log(getTranslation('--- Iniciando busca por COMENTÁRIOS pendentes ---'));
     const commentsResults = await fetchRecursivePending(rpc, 'condenser_api.get_discussions_by_comments', commentsQuery, nowMs, sevenDaysMs, curationRatio,account );
-
-    console.log('discussionsResults');
-    console.log('commentsResults');
-    console.log(discussionsResults);
-    console.log(commentsResults);
-
 
     const curationResults = await getEstimatedCurationRewards(account, rpc);
 
@@ -258,7 +235,7 @@ export async function getPendingRewards(account, rpc) {
     const pendingAuthorSum = discussionsResults.totalPendingAuthor + commentsResults.totalPendingAuthor;
     const pendingCurationEstimate = curationResults.estimatedTotalReward;
     //const pendingCurationEstimate = 0;
-    log('Busca de pendentes concluída.');
+    log(getTranslation('Busca de pendentes concluída.'));
 
     return { pendingAuthorSum, pendingCurationEstimate, pendingCurationDailyMap };
 }
@@ -273,7 +250,7 @@ export async function getPendingRewards(account, rpc) {
  * @returns {Promise<{totalVotes: number, estimatedRewardBLURT: number}>} As somas estimadas.
  */
 export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1.15) {
-    log('Buscando histórico de VOTOS dos últimos 7 dias...');
+    log(getTranslation('Buscando histórico de VOTOS dos últimos 7 dias...'));
 
     const nowMs = Date.now();
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
@@ -314,7 +291,7 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
     }
 
     totalVotes = recentVotes.length;
-    log(`Votos recentes (7d) encontrados: ${totalVotes}`);
+    log(getTranslation('Votos recentes (7d) encontrados:'), totalVotes);
 
     // Para cada voto, busca o conteúdo e os votos ativos para calcular fração por rshares
     for (const vote of recentVotes) {
@@ -374,7 +351,7 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
         }
     }
 
-    log(`Estimativa de recompensa de curadoria (7d): ${estimatedTotalReward.toFixed(3)} BLURT`);
+    log(`${getTranslation("Estimativa de recompensa de curadoria (7d):")} ${estimatedTotalReward.toFixed(3)} BLURT`);
 
 
     const cacheallvotesEstimate = cache.allvotesEstimate;
@@ -388,7 +365,7 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
 
 export async function getAccountHistoryLast30Days(account, rpc, limit = 1000) {
   if (!account || !rpc) {
-    throw new Error('Parâmetros inválidos: é necessário account, rpc e rpcCallFn (função).');
+    throw new Error(getTranslation('Parâmetros inválidos: é necessário account, rpc e rpcCallFn (função).'));
   }
 
   const cutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
@@ -448,8 +425,6 @@ export async function getAccountHistoryLast30Days(account, rpc, limit = 1000) {
   filtered.sort((a, b) => new Date(b[1].timestamp || b[1].time || b[1].created).getTime()
                        - new Date(a[1].timestamp || a[1].time || a[1].created).getTime());
 
-  console.log('Account History Last 30 Days:');
-  console.log(filtered);  
 
   let allvotes = [];
   let allrewardauthor = [];
@@ -457,7 +432,6 @@ export async function getAccountHistoryLast30Days(account, rpc, limit = 1000) {
 
   filtered.forEach(entry => {
     if(entry[1].op[0] === 'vote'){
-      //console.log(entry[1].op[1]);
       if(entry[1].op[1].voter === account){
         allvotes.push(entry);
         //entry[1].op[1]
@@ -473,13 +447,6 @@ export async function getAccountHistoryLast30Days(account, rpc, limit = 1000) {
     }
   }
 );
-
-
-
-  console.log('author_reward');
-  console.log(allrewardauthor);
-
-
 
   cache.allastFetch = filtered
   cache.allvoteFetch = allvotes;
@@ -497,7 +464,7 @@ export async function getAccountHistoryLast30Days(account, rpc, limit = 1000) {
 export async function getVestingSharePrice(rpc) {
     if (cache.vestingSharePrice) return cache.vestingSharePrice;
 
-    log('Buscando Vesting Share Price (BLURT/VESTS)...');
+    log(getTranslation('Buscando Vesting Share Price (BLURT/VESTS)...'));
     
     // get_dynamic_global_properties
     const props = await rpcCall(rpc, 'condenser_api.get_dynamic_global_properties', []);
@@ -525,7 +492,7 @@ export async function getAccountStats(account, rpc) {
     const vestingPrice = await getVestingSharePrice(rpc);
     
     // 1. Busca os dados da conta
-    log(`Buscando dados da conta @${account}...`);
+    log(`${getTranslation("Buscando dados da conta")} @${account}...`);
     const accounts = await rpcCall(rpc, 'condenser_api.get_accounts', [[account]]);
     if (!accounts || accounts.length === 0) {
         throw new Error(`Conta @${account} não encontrada.`);
@@ -568,7 +535,7 @@ export async function getAccountStats(account, rpc) {
 }
 
 export async function getSocialInteractions(account, rpc) {
-    log('Buscando interações sociais (votos recebidos, votos dados, comentários)...');
+    log(getTranslation('Buscando interações sociais (votos recebidos, votos dados, comentários)...'));
     
     // Usando o histórico que deve ter sido preenchido pelo getRewardHistory
     const history = cache.allastFetch; 
@@ -637,8 +604,8 @@ export async function getSocialInteractions(account, rpc) {
         }
     });
     
-    log(`Votos dados (7d, contagem): ${Object.keys(votesGivenCountMap).length} alvos.`);
-    log(`Votos recebidos: ${Object.keys(votersMap).length} pessoas.`);
+    log(`${getTranslation("Votos dados (7d, contagem:")} ${Object.keys(votesGivenCountMap).length} alvos.`);
+    log(`${getTranslation("Votos recebidos:")} ${Object.keys(votersMap).length} pessoas.`);
 
 
     // 2. Transforma mapas em listas ordenadas (Top 10)
