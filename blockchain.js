@@ -15,6 +15,9 @@ let cache={
   vestingSharePrice: null,
 };
 
+const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=blurt&vs_currencies=usd';
+const BLURT_PRICE_KEY = 'blurtPriceData'; // Chave do localStorage
+
 // --- Funções da Blockchain (Acesso à API RPC) ---
 
 /**
@@ -642,4 +645,137 @@ export async function getSocialInteractions(account, rpc) {
         // Mantém 'votesGiven' como um array vazio para não quebrar a interface que ainda pode esperar ele
         votesGiven: [], 
     };
+}
+
+
+/**
+ * Busca o preço do BLURT/USD no CoinGecko, com cache diário no localStorage.
+ * * Se o preço foi buscado hoje, usa o valor em cache. Caso contrário, faz uma nova requisição,
+ * armazena o novo valor e a data atual no localStorage e retorna o preço.
+ * * @returns {Promise<number|null>} O preço do BLURT em USD, ou null em caso de erro.
+ */
+export async function getBlurtPriceFromCoingecko() {
+    // toDateKey é importado de utils.js, então podemos usá-lo para a data de hoje (YYYY-MM-DD)
+    const todayKey = toDateKey(new Date().toISOString()); 
+    
+    // 1. Tenta carregar do localStorage
+    try {
+        const storedData = localStorage.getItem(BLURT_PRICE_KEY);
+        if (storedData) {
+            const data = JSON.parse(storedData);
+            
+            // 2. Verifica se a data é a de hoje e se o preço é válido
+            if (data && data.date === todayKey && typeof data.price === 'number' && data.price > 0) {
+                log('Preço BLURT do cache local:', data.price.toFixed(5), 'USD');
+                return data.price;
+            }
+        }
+    } catch (e) {
+        log('Erro ao ler do localStorage, buscando novo preço:', e.message);
+    }
+    
+    // 3. Se não houver cache ou for de outro dia, faz a requisição
+    log('Buscando novo preço BLURT no CoinGecko...');
+    try {
+        const response = await fetch(COINGECKO_API_URL);
+        if (!response.ok) {
+            throw new Error(`Erro HTTP: ${response.status}`);
+        }
+        
+        const json = await response.json();
+        // Extrai o preço do objeto: { blurt: { usd: 0.005 } }
+        const price = json.blurt ? json.blurt.usd : null; 
+        
+        if (typeof price === 'number' && price > 0) {
+            log('Novo preço BLURT CoinGecko:', price.toFixed(5), 'USD');
+            
+            // 4. Salva no localStorage (preço e data de hoje)
+            const dataToStore = {
+                price: price,
+                date: todayKey, 
+                timestamp: new Date().getTime(),
+            };
+            localStorage.setItem(BLURT_PRICE_KEY, JSON.stringify(dataToStore));
+            
+            return price;
+        } else {
+            throw new Error('Preço inválido ou não encontrado na resposta da API.');
+        }
+
+    } catch (error) {
+        log('Erro ao buscar o preço BLURT do CoinGecko:', error.message);
+        
+        // Em caso de falha, tenta retornar o último preço válido do cache (mesmo que antigo)
+        const storedData = localStorage.getItem(BLURT_PRICE_KEY);
+        if (storedData) {
+            const data = JSON.parse(storedData);
+            if (data && data.price > 0) {
+                 log('Falha na busca, usando último preço conhecido (antigo):', data.price.toFixed(5), 'USD');
+                 return data.price;
+            }
+        }
+        
+        return null; // Retorna null se falhar a busca e não houver cache
+    }
+}
+
+export async function getCurrencyRateByLanguage(lang) {
+  const currencyMap = {
+    en: 'USD', // English → Dollar
+    de: 'EUR', // Deutsch → Euro
+    es: 'EUR', // Español → Euro
+    fr: 'EUR', // Français → Euro
+    pl: 'PLN', // Polski → Zloty polonês
+    pt: 'BRL', // Português → Real brasileiro
+    ja: 'JPY', // 日本語 → Iene japonês
+    zh: 'CNY'  // 中文 → Yuan chinês
+  };
+
+  const currency = currencyMap[lang];
+  if (!currency) {
+    console.warn("Idioma não suportado:", lang);
+    return null;
+  }
+
+  // Se for USD, não precisa buscar nada
+  if (currency === 'USD') {
+    return { base: 'USD', target: 'USD', rate: 1 };
+  }
+
+  const cacheKey = `currencyRate_${currency}`;
+  const cacheData = localStorage.getItem(cacheKey);
+
+  // Verifica se já tem cache válido (menos de 24h)
+  if (cacheData) {
+    try {
+      const { rate, timestamp } = JSON.parse(cacheData);
+      const now = Date.now();
+      const diffHours = (now - timestamp) / (1000 * 60 * 60);
+
+      if (diffHours < 24) {
+        // Retorna o valor salvo sem nova requisição
+        return { base: 'USD', target: currency, rate, cached: true };
+      }
+    } catch {
+      // Cache inválido — ignora
+    }
+  }
+
+  // Se não houver cache válido, busca da API
+  try {
+    const response = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${currency}`);
+    const data = await response.json();
+    const rate = data.rates[currency];
+
+    // Salva no localStorage com timestamp
+    localStorage.setItem(
+      cacheKey,
+      JSON.stringify({ rate, timestamp: Date.now() })
+    );
+
+    return { base: 'USD', target: currency, rate, cached: false };
+  } catch (err) {
+    console.error("Erro ao buscar taxa de câmbio:", err);
+    return null;
+  }
 }

@@ -721,7 +721,8 @@ export const translations = {
     "es": "Parámetros inválidos: se requieren account, rpc y rpcCallFn (función).",
     "fr": "Paramètres invalides : account, rpc et rpcCallFn (fonction) sont requis.",
     "ja": "無効なパラメーター: account, rpc, および rpcCallFn (関数) が必要です。"
-  }
+  },
+  'Idioma:': { 'en': 'Language:', 'de': 'Sprache:', 'es': 'Idioma:', 'fr': 'Langue:', 'pl': 'Język:', 'ja': '言語:', 'zh': '语言:' },
 };
 
 /* template

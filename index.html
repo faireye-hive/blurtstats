@@ -14,7 +14,7 @@
       <div class="small" data-i18n="Últimos 30 dias — recompensas recebidas e estimativas de pending (próx. 7 dias)">Últimos 30 dias — recompensas recebidas e estimativas de pending (próx. 7 dias)</div>
       
       <div class="lang-selector">
-          <label class="small" for="langSelect">Idioma:</label>
+          <label class="small" data-i18n="Idioma:" for="langSelect">Idioma:</label>
           <select id="langSelect">
             <option value="en">English (EN)</option>
             <option value="de">Deutsch (DE)</option>
@@ -25,8 +25,16 @@
             <option value="ja">日本語 (JA)</option>
             <option value="zh">中文 (ZH)</option>
           </select>
+            <select id="currencySelect">
+            <option value="en" selected data-i18n="USD">USD</option>
+            <option value="de" data-i18n="EUR">EUR</option>
+            <option value="pt" data-i18n="BRL">BRL</option>
+            <option value="pl" data-i18n="PLN">PLN</option>
+            <option value="ja" data-i18n="JPY">JPY</option>
+            <option value="zh" data-i18n="RMB">CNY</option>
+        </select>
       </div>
-      
+
     </header>
 
     <div class="controls card">

@@ -1,6 +1,12 @@
 // Importa todas as funções e utilitários necessários do blockchain.js
-import { getRewardHistory, getPendingRewards, getAccountStats, getSocialInteractions} from './blockchain.js'; 
-import {$, fmt, log, toDateKey } from './utils.js';
+import { 
+        getRewardHistory,
+        getPendingRewards,
+        getAccountStats,
+        getSocialInteractions,
+        getBlurtPriceFromCoingecko,
+        getCurrencyRateByLanguage} from './blockchain.js'; 
+import {$, fmt, log, toDateKey, getCurrencySymbolByLang } from './utils.js';
 // Importa a lógica de tradução
 import { translate, translations } from './i18n.js';
 
@@ -8,7 +14,14 @@ import { translate, translations } from './i18n.js';
 let chart;
 // Armazena o idioma atual
 let currentLang = 'pt';
+let currentCurrency = 'usd';
 
+function handleCurrencyChange(e) {
+    currentCurrency = e.target.value;
+    // Salva a preferência no armazenamento local
+    localStorage.setItem('preferredCurrency', currentCurrency); 
+
+}
 
 /**
  * Função para obter a tradução de textos dinâmicos.
@@ -106,6 +119,8 @@ async function fetchAndRender() {
     }
     
     const postLimit = parseInt($('postLimit').value, 10) || 100;
+
+    const moedaSelecionada = currentCurrency;
     
     if (!account) { 
         alert(getTranslation('Informe a conta.')); 
@@ -117,6 +132,22 @@ async function fetchAndRender() {
 
     try {
         log('RPC:', rpc);
+
+        let blurtPriceUsd = await getBlurtPriceFromCoingecko();
+
+        //const getLang = localStorage.getItem('preferredLang');    
+        let rateactual = await getCurrencyRateByLanguage(moedaSelecionada);
+
+        const symbol = getCurrencySymbolByLang(moedaSelecionada);
+                
+        blurtPriceUsd = blurtPriceUsd*rateactual.rate;
+
+        console.log(blurtPriceUsd);
+        if (blurtPriceUsd === null) {
+            log('Aviso: Não foi possível obter o preço do BLURT em USD. Alguns cálculos podem estar incompletos.');
+            // Você pode decidir parar a execução aqui ou continuar, usando 0 para o preço.
+            // Por enquanto, continuaremos.
+        }
 
         // 0. Busca as estatísticas da conta
         const stats = await getAccountStats(account, rpc);
@@ -140,14 +171,14 @@ async function fetchAndRender() {
         const totalCuration = Object.values(daysMapCuration).reduce((a, b) => a + b, 0);
         const totalAuthor = Object.values(daysMapAuthor).reduce((a, b) => a + b, 0);
 
-        $('totalCuration').textContent = totalCuration.toFixed(3) + ' ' + getTranslation('BLURT');
-        $('totalAuthor').textContent = totalAuthor.toFixed(3) + ' ' + getTranslation('BLURT');
+        $('totalCuration').textContent = totalCuration.toFixed(3) + ' ' + getTranslation('BLURT') + symbol+ (totalCuration*blurtPriceUsd).toFixed(4);
+        $('totalAuthor').textContent = totalAuthor.toFixed(3) + ' ' + getTranslation('BLURT') + symbol+ (totalAuthor*blurtPriceUsd).toFixed(4);
 
         // 2. Busca e calcula recompensas pendentes
         const { pendingAuthorSum, pendingCurationEstimate, pendingCurationDailyMap } = await getPendingRewards(account, rpc, postLimit);
 
-        $('pendingAuthor').textContent = pendingAuthorSum.toFixed(3) + ' ' + getTranslation('BLURT');
-        $('pendingCuration').textContent = pendingCurationEstimate.toFixed(3) + ' ' + getTranslation('BLURT (estim. total)');
+        $('pendingAuthor').textContent = pendingAuthorSum.toFixed(3) + ' ' + getTranslation('BLURT') + symbol+ (pendingAuthorSum*blurtPriceUsd).toFixed(4);
+        $('pendingCuration').textContent = pendingCurationEstimate.toFixed(3) + ' ' + getTranslation('BLURT (estim. total)') + symbol+ (pendingCurationEstimate*blurtPriceUsd).toFixed(4);
         
         // 3. NOVO: Cálculo do APR
         const principal = stats.blurtPower; // Blurt Power (Passo 0)
@@ -407,9 +438,25 @@ document.addEventListener('DOMContentLoaded', () => {
         // Aplica a tradução (salva ou padrão) ao carregar
         translate(currentLang);
     }
+    const currencySelect = $('currencySelect'); 
+    if (currencySelect) {
+        // 1. Tenta carregar a moeda salva
+        const savedCurrency = localStorage.getItem('preferredCurrency');
+        if (savedCurrency) {
+            currentCurrency = savedCurrency;
+            currencySelect.value = savedCurrency;
+        } else {
+            // 2. Se não houver salva, usa o valor padrão do HTML
+            currentCurrency = currencySelect.value;
+        }
+
+        // 3. Adiciona o listener para atualizar a variável na mudança
+        currencySelect.addEventListener('change', handleCurrencyChange);
+    }
 
     // Preenchimento inicial (limpa os campos)
     const accountInputEl = $('accountInput');
+    
     if (accountInputEl) accountInputEl.value = '';
     
     // (Não limpa o RPC para manter o padrão)
