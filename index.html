@@ -13,12 +13,12 @@
       <h1 data-i18n="Blurt Rewards Dashboard">Blurt Rewards Dashboard</h1>
       <div class="small" data-i18n="Últimos 30 dias — recompensas recebidas e estimativas de pending (próx. 7 dias)">Últimos 30 dias — recompensas recebidas e estimativas de pending (próx. 7 dias)</div>
       
-      <div style="margin-left:auto;">
+      <div class="lang-selector">
           <label class="small" for="langSelect">Idioma:</label>
           <select id="langSelect">
+            <option value="en">English (EN)</option>
             <option value="de">Deutsch (DE)</option>
             <option value="es">Español (ES)</option>
-            <option value="en">English (EN)</option>
             <option value="fr">Français (FR)</option>
             <option value="pl">Polski (PL)</option>
             <option value="pt">Português (PT)</option>
@@ -41,10 +41,10 @@
         
         <label class="small" data-i18n="RPC / nodo:">RPC / nodo:</label>
         <select id="rpcSelect">
-            <option value="https://rpc.blurt.world">rpc.blurt.world</option>
-            <option value="https://rpc.blurt.one">rpc.blurt.one</option>
-            <option value="https://rpc.blurt.blog">rpc.blurt.blog</option>
-            <option value="https://rpc-blurt.privex.io">rpc-blurt.privex.io</option>
+            <option value="https://rpc.blurt.world">https://rpc.blurt.world</option>
+            <option value="https://blurt-rpc.saboin.com">https://blurt-rpc.saboin.com</option>
+            <option value="https://rpc.beblurt.com">https://rpc.beblurt.com</option>
+            <option value="https://blurtrpc.dagobert.uk">https://blurtrpc.dagobert.uk</option>
             <option value="custom" data-i18n="Custom...">Custom...</option>
         </select>
         <input id="rpcCustomInput" style="display:none;" placeholder="https://seu-nodo-custom.com" />

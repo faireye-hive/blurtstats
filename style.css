@@ -10,6 +10,8 @@ body {
   background: linear-gradient(180deg, #071127 0%, #071827 100%);
   color: #e6eef6;
   padding: 24px;
+  /* NOVO: Ajuste o padding para telas muito pequenas */
+  padding: 12px;
 }
 
 .container {
@@ -22,6 +24,8 @@ header {
   gap: 16px;
   align-items: center;
   margin-bottom: 20px;
+  /* Permite quebra de linha para mobile */
+  flex-wrap: wrap;
 }
 
 h1 {
@@ -33,6 +37,17 @@ h1 {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  /* Ocupa 100% para empurrar o bloco de idioma/seleção */
+  width: 100%; 
+  order: 2; /* Move os controles abaixo do H1 e do texto da página no mobile */
+}
+
+/* NOVO: Estilo para o seletor de idioma (corrigido para class) */
+header .lang-selector {
+    width: 100%;
+    order: 3;
+    text-align: left;
+    margin-left: 0 !important;
 }
 
 input,
@@ -43,6 +58,9 @@ button {
   color: var(--muted);
   padding: 10px;
   border-radius: 8px;
+  /* Faz com que inputs, selects e buttons ocupem a largura total no mobile */
+  flex-grow: 1; 
+  min-width: 0; /* Permite o encolhimento correto */
 }
 
 button {
@@ -55,13 +73,14 @@ button {
 /* RESPONSIVIDADE DO GRID: Mobile primeiro (1 coluna) */
 .grid {
   display: grid;
-  grid-template-columns: 1fr; /* Padrão Mobile: 1 coluna */
-  gap: 16px;
+  gap: 20px;
+  grid-template-columns: 1fr; /* Padrão: 1 coluna no mobile */
 }
 
-/* Desktop: 2 colunas */
+/* Media Query para telas maiores (Desktop/Tablet) */
 @media (min-width: 768px) {
   .grid {
+    /* Layout de desktop: 2 colunas */
     grid-template-columns: 1fr 420px;
   }
 }
@@ -80,9 +99,11 @@ button {
 
 .chart-wrap {
   height: 320px;
+  /* Garante que o gráfico não saia da tela */
+  overflow-x: auto;
 }
 
-/* Garante que o stats (que era a única coisa no canto direito) ocupe a largura total no mobile */
+/* Garante que o stats ocupe a largura total no mobile */
 ul.stats {
   list-style: none;
   padding: 0;
@@ -99,22 +120,32 @@ ul.stats li {
   flex: 1;
   text-align: center;
   min-width: 120px; /* Ajuda no alinhamento em telas médias */
+  word-break: break-word; /* NOVO: Garante que texto longo (ex: estimativa) quebre */
 }
 
 footer {
   margin-top: 18px;
   color: var(--muted);
   font-size: 13px;
-}
-
-.loading {
-  opacity: 0.8;
+  text-align: center;
 }
 
 .warn {
-  color: #ffd580;
+  color: #fca5a5; /* Um vermelho claro para avisos */
+  background-color: rgba(252, 165, 165, 0.1);
+  padding: 8px;
+  border-radius: 4px;
 }
 
+/* --- ESTILOS ADICIONADOS --- */
+
+/* CORREÇÃO PRINCIPAL: Força a quebra de linha no log */
+#log {
+  white-space: pre-wrap !important; /* Permite quebra de linha, mantendo formatação */
+  word-break: break-all !important; /* Força a quebra de strings longas (erros, etc) */
+}
+
+/* Estilos de 'style(4).css' que faltavam */
 .example {
   color: #9fc3ff;
   font-size: 13px;
@@ -139,7 +170,6 @@ footer {
   border-radius: 50%;
 }
 
-/* Estilos para as listas de interações */
 .compact-list {
   list-style: none;
   padding: 0;
@@ -150,6 +180,7 @@ footer {
   font-size: 14px;
   padding: 2px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  word-break: break-word; /* NOVO: Garante que nomes de usuário longos quebrem */
 }
 
 .compact-list li:last-child {
