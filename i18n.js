@@ -12,6 +12,7 @@ export const translations = {
     // CONTROLS
     'Conta:': { 'en': 'Account:' },
     'RPC / nodo:': { 'en': 'RPC / Node:' },
+    'Custom...': { 'en': 'Custom...' }, // NOVO
     'Buscar': { 'en': 'Fetch' },
     'Dica: aumente limite se tiver muitas postagens': { 'en': 'Tip: increase limit if you have many posts' },
     'Este site usa as chamadas JSON-RPC da API "condenser_api" (get_account_history, get_discussions_by_blog, get_content). Configure o RPC caso o padrão não funcione.': { 'en': 'This site uses JSON-RPC calls from the "condenser_api" (get_account_history, get_discussions_by_blog, get_content). Configure the RPC if the default one does not work.' },
@@ -43,6 +44,7 @@ export const translations = {
     'Voting Power (VP)': { 'en': 'Voting Power (VP)' },
     'Blurt Power (BP)': { 'en': 'Blurt Power (BP)' },
     'Blurt Líquido': { 'en': 'Liquid Blurt' },
+    'APR Estimado (Curation 7d)': { 'en': 'Estimated APR (Curation 7d)' }, // NOVO
 
     // LOGS
     'Logs': { 'en': 'Logs' },
@@ -93,25 +95,34 @@ export const translations = {
 export function translate(lang) {
     const titleEl = document.querySelector('title');
     if (titleEl && titleEl.hasAttribute('data-i18n')) {
-        const key = titleEl.getAttribute('data-i18n');
-        const translation = translations[key];
-        if (translation && translation[lang]) {
-            titleEl.textContent = translation[lang];
+        const key = titleEl.getAttribute('data-i18n'); // O texto em PT
+        
+        if (lang === 'pt') {
+            titleEl.textContent = key; // Reverte para PT
         } else {
-            titleEl.textContent = key;
+            const translation = translations[key];
+            if (translation && translation[lang]) {
+                titleEl.textContent = translation[lang]; // Traduz para EN
+            } else {
+                titleEl.textContent = key; // Fallback para PT
+            }
         }
     }
-
-    if (lang === 'pt') return; 
-
+    
     document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n'); 
-        const translation = translations[key];
+        const key = el.getAttribute('data-i18n'); // O texto original em PT
         
-        if (translation && translation[lang]) {
-            el.textContent = translation[lang];
-        } else {
+        if (lang === 'pt') {
+            // Se o idioma for PT, reverte o texto para a chave (o texto em PT)
             el.textContent = key;
+        } else {
+            // Se for EN, busca a tradução
+            const translation = translations[key];
+            if (translation && translation[lang]) {
+                el.textContent = translation[lang]; // Traduz
+            } else {
+                el.textContent = key; // Fallback (mantém PT se não houver tradução)
+            }
         }
     });
 }

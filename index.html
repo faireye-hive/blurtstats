@@ -27,8 +27,17 @@
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <label class="small" data-i18n="Conta:">Conta:</label>
         <input id="accountInput" value="bgo" placeholder="ex: seuusuario" />
+        
         <label class="small" data-i18n="RPC / nodo:">RPC / nodo:</label>
-        <input id="rpcInput" value="https://rpc.blurt.world" placeholder="https://rpc.blurt.world (ou outro)" />
+        <select id="rpcSelect">
+            <option value="https://rpc.blurt.world">rpc.blurt.world</option>
+            <option value="https://rpc.blurt.one">rpc.blurt.one</option>
+            <option value="https://rpc.blurt.blog">rpc.blurt.blog</option>
+            <option value="https://rpc-blurt.privex.io">rpc-blurt.privex.io</option>
+            <option value="custom" data-i18n="Custom...">Custom...</option>
+        </select>
+        <input id="rpcCustomInput" style="display:none;" placeholder="https://seu-nodo-custom.com" />
+        
         <button id="fetchBtn" data-i18n="Buscar">Buscar</button>
         <div style="margin-left:auto" class="example" data-i18n="Dica: aumente limite se tiver muitas postagens">Dica: aumente limite se tiver muitas postagens</div>
       </div>
@@ -123,6 +132,10 @@
             <li>
                 <div class="small" data-i18n="Blurt Líquido">Blurt Líquido</div>
                 <div id="blurtLiquid" style="font-weight:700;font-size:18px">—</div>
+            </li>
+            <li>
+                <div class="small" data-i18n="APR Estimado (Curation 7d)">APR Estimado (Curation 7d)</div>
+                <div id="aprDisplay" style="font-weight:700;font-size:18px">—</div>
             </li>
         </ul>
     </div>
