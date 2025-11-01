@@ -10,6 +10,8 @@ let cache={
   allcurationFetch: [],
   TotalPedingResultPost: [],
   TotalPedingResultComment: [],
+  allvotesEstimate: [],
+  vestingSharePrice: null,
 };
 
 // --- Funções da Blockchain (Acesso à API RPC) ---
@@ -130,12 +132,16 @@ async function fetchRecursivePending(rpc, apiMethod, query, nowMs, sevenDaysMs, 
                 const pendingStr = item.pending_payout_value || '0.000 BLURT';
                 const cashout = item.cashout_time; // ex: "2025-11-01T12:00:00"
                 const cashMs = new Date(cashout).getTime();
-
+                console.log("tA INDOOOOOOOOOOOO?");
 
                 const createdbase = new Date(item.created).getTime();
+
+                console.log(item);
                 
                 // 1. Verifica se o post ainda está pendente E dentro da janela de 7 dias
-                if (!isNaN(createdbase) && createdbase < nowMs && (nowMs - createdbase) <= sevenDaysMs) {
+                if (!isNaN(createdbase) && (createdbase+setedias) >= DataNow) {
+
+                    console.log("Aqui tA PASSANDO?");
 
                     if(item &&item.author === account && (createdbase+setedias) >= DataNow){
                         if(apiMethod === "condenser_api.get_discussions_by_blog"){
@@ -181,6 +187,9 @@ async function fetchRecursivePending(rpc, apiMethod, query, nowMs, sevenDaysMs, 
     }
     console.log('cache.TotalPedingResultPost');
     console.log(cache.TotalPedingResultPost);
+    
+        console.log("cache.TotalPedingResultComment");
+            console.log(cache.TotalPedingResultComment);
 
     return { totalPendingAuthor, totalPendingCuration };
 }
@@ -215,7 +224,34 @@ export async function getPendingRewards(account, rpc) {
     log('--- Iniciando busca por COMENTÁRIOS pendentes ---');
     const commentsResults = await fetchRecursivePending(rpc, 'condenser_api.get_discussions_by_comments', commentsQuery, nowMs, sevenDaysMs, curationRatio,account );
 
+    console.log('discussionsResults');
+    console.log('commentsResults');
+    console.log(discussionsResults);
+    console.log(commentsResults);
+
+
     const curationResults = await getEstimatedCurationRewards(account, rpc);
+
+    const estimatedVotes = curationResults.cacheallvotesEstimate; //
+
+
+    const pendingCurationDailyMap = {};
+
+    // Calcula o dia de cashout para cada voto
+    estimatedVotes.forEach(vote => {
+        const cashoutMs = new Date(vote.cashout_time).getTime();
+        const nowMs = Date.now();
+        const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+        
+        // Verifica se o cashout está no futuro e dentro dos próximos 7 dias
+        // (Nota: toDateKey deve ser importado de './utils.js')
+        if (cashoutMs > nowMs && (cashoutMs - nowMs) <= sevenDaysMs) {
+            const cashoutKey = toDateKey(vote.cashout_time);
+            
+            // Inicializa ou soma
+            pendingCurationDailyMap[cashoutKey] = (pendingCurationDailyMap[cashoutKey] || 0) + vote.estimatedReward;
+        }
+    });
 
 
     // 3. Soma os resultados
@@ -224,7 +260,7 @@ export async function getPendingRewards(account, rpc) {
     //const pendingCurationEstimate = 0;
     log('Busca de pendentes concluída.');
 
-    return { pendingAuthorSum, pendingCurationEstimate };
+    return { pendingAuthorSum, pendingCurationEstimate, pendingCurationDailyMap };
 }
 
 
@@ -253,6 +289,7 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
     let estimatedTotalReward = 0;
     let totalVotes = 0;
     const recentVotes = [];
+    cache.allvotesEstimate = []; // Limpa o cache a cada execução
 
     // NÃO usar break aqui — colecione votos dentro da janela
     for (const entry of history) {
@@ -283,7 +320,6 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
     for (const vote of recentVotes) {
         try {
             const content = await rpcCall(rpc, 'condenser_api.get_content', [vote.author, vote.permlink]);
-
             if (!content) continue;
 
             // Se não há pending payout, pula
@@ -318,6 +354,19 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
             const fraction = Number(myRshares) / Number(sumRshares);
             const estimatedReward = totalCurationPool * fraction;
 
+                cache.allvotesEstimate.push({
+                    author: vote.author,
+                    permlink: vote.permlink,
+                    weight: vote.weight,
+                    timeMs: vote.timeMs,
+                    estimatedReward: estimatedReward,
+                    cashout_time: content.cashout_time,
+                    author: content.author,
+                    created: content.created,
+                    net_rshares: content.net_rshares,
+                    pending_payout_value: content.pending_payout_value,
+                    
+                });
             estimatedTotalReward += estimatedReward;
 
         } catch (e) {
@@ -327,32 +376,11 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
 
     log(`Estimativa de recompensa de curadoria (7d): ${estimatedTotalReward.toFixed(3)} BLURT`);
 
-    console.log('Estimated Curation Rewards:'); 
-      console.log(totalVotes);
-      console.log(estimatedTotalReward);
 
-    return { estimatedTotalReward };
-}
+    const cacheallvotesEstimate = cache.allvotesEstimate;
 
 
-// Função para buscar o preço de conversão VESTS/BLURT
-export async function getVestingSharePrice(rpc) {
-    try {
-        log('Buscando dynamic global properties...');
-        const props = await rpcCall(rpc, 'condenser_api.get_dynamic_global_properties', []);
-        
-        const fund = parseFloat(props.total_vesting_fund_blurt.split(' ')[0]);
-        const shares = parseFloat(props.total_vesting_shares.split(' ')[0]);
-        
-        if (shares === 0) return 1.0; 
-        
-        const price = fund / shares;
-        log(`Taxa VESTS/BLURT: 1 VEST = ${price.toFixed(6)} BLURT`);
-        return price;
-    } catch (e) {
-        log('Erro ao buscar vesting share price, usando fallback (1.0).', e.message);
-        return 1.0; 
-    }
+    return { estimatedTotalReward, cacheallvotesEstimate,  };
 }
 
 
@@ -458,4 +486,193 @@ export async function getAccountHistoryLast30Days(account, rpc, limit = 1000) {
   cache.allauthorFetch = allrewardauthor;
   cache.allcurationFetch = allrewardcuration;
   return filtered;
+}
+
+
+/**
+ * Busca o Vesting Share Price (BLURT/VESTS)
+ * @param {string} rpc - URL do nodo RPC.
+ * @returns {Promise<number>} O preço de 1 VEST em BLURT.
+ */
+export async function getVestingSharePrice(rpc) {
+    if (cache.vestingSharePrice) return cache.vestingSharePrice;
+
+    log('Buscando Vesting Share Price (BLURT/VESTS)...');
+    
+    // get_dynamic_global_properties
+    const props = await rpcCall(rpc, 'condenser_api.get_dynamic_global_properties', []);
+    
+    const totalVestingShares = parseFloat(fmt(props.total_vesting_shares));
+    const totalVestingFund = parseFloat(fmt(props.total_vesting_fund_blurt));
+
+    if (totalVestingShares > 0) {
+        cache.vestingSharePrice = totalVestingFund / totalVestingShares;
+        log(`Vesting Share Price: ${cache.vestingSharePrice.toFixed(6)} BLURT/VEST`);
+        return cache.vestingSharePrice;
+    }
+    
+    throw new Error('Não foi possível calcular o Vesting Share Price.');
+}
+
+/**
+ * NOVO: Busca e calcula estatísticas importantes da conta (VP, BP, Liquido).
+ * @param {string} account - Nome da conta.
+ * @param {string} rpc - URL do nodo RPC.
+ * @returns {Promise<{votingPower: number, blurtPower: number, blurtLiquid: number}>} Estatísticas da conta.
+ */
+export async function getAccountStats(account, rpc) {
+    
+    const vestingPrice = await getVestingSharePrice(rpc);
+    
+    // 1. Busca os dados da conta
+    log(`Buscando dados da conta @${account}...`);
+    const accounts = await rpcCall(rpc, 'condenser_api.get_accounts', [[account]]);
+    if (!accounts || accounts.length === 0) {
+        throw new Error(`Conta @${account} não encontrada.`);
+    }
+    const acc = accounts[0];
+    
+    // 2. Calcula Voting Power (VP)
+    // O VP é um valor entre 0 e 10000 (0.00% a 100.00%)
+    const lastVoteTime = new Date(acc.last_vote_time).getTime();
+    const now = Date.now();
+    // Regeneração: 5 dias (432000 segundos) para 100% de VP
+    const secondsSinceLastVote = (now - lastVoteTime) / 1000;
+    
+    let currentVp = acc.voting_power + (10000 * secondsSinceLastVote / 432000);
+    if (currentVp > 10000) currentVp = 10000;
+    
+    const votingPower = currentVp / 100; // Converte para percentual (0.00 a 100.00)
+
+    // 3. Calcula Blurt Power (BP)
+    // VESTS totais convertidos para BLURT
+    const totalVests = parseFloat(fmt(acc.vesting_shares));
+    const delegatedVests = parseFloat(fmt(acc.delegated_vesting_shares));
+    const receivedVests = parseFloat(fmt(acc.received_vesting_shares));
+
+    // Blurt Power = (vesting_shares - delegated_vesting_shares) * vestingPrice
+    // Apenas os VESTS que a conta possui e não delegou.
+    const effectiveVests = totalVests - delegatedVests;
+    const blurtPower = effectiveVests * vestingPrice;
+    
+    // 4. Calcula BLURT Líquido
+    const blurtLiquid = parseFloat(fmt(acc.balance));
+    
+    log(`VP: ${votingPower.toFixed(2)}%, BP: ${blurtPower.toFixed(3)} BLURT, Líquido: ${blurtLiquid.toFixed(3)} BLURT`);
+
+    return {
+        votingPower,
+        blurtPower,
+        blurtLiquid
+    };
+}
+
+export async function getSocialInteractions(account, rpc) {
+    log('Buscando interações sociais (votos recebidos, votos dados, comentários)...');
+    
+    // Usando o histórico que deve ter sido preenchido pelo getRewardHistory
+    const history = cache.allastFetch; 
+    
+    // Mapas para agregar e contar interações
+    const votersMap = {}; // Quem votou em você (30 dias)
+    const commentsGivenMap = {}; // Para quem você comentou (30 dias)
+    const commentersMap = {}; // Quem comentou em seus posts/comentários (30 dias)
+    
+    // NOVO: Mapa para contar seus votos dados, focado na janela de 7 dias
+    const votesGivenCountMap = {};
+    const nowMs = Date.now();
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+
+
+    // 1. Processar histórico (últimos 30 dias)
+    history.forEach(entry => {
+        const op = entry[1].op[0];
+        const data = entry[1].op[1];
+        const ts = entry[1].timestamp;
+        const opTimeMs = new Date(ts).getTime();
+
+        // VOTOS
+        if (op === 'vote') {
+            const isMyVote = data.voter === account;
+            const isVoteOnMyPost = data.author === account;
+
+            if (isMyVote) {
+                // Votos que a conta DEU
+                
+                // CONTAGEM DE VOTOS DADOS (ÚLTIMOS 7 DIAS)
+                // Apenas se o voto estiver dentro da janela de 7 dias (pending cashout)
+                if ((nowMs - opTimeMs) <= sevenDaysMs) {
+                     const targetAuthor = data.author;
+                     votesGivenCountMap[targetAuthor] = (votesGivenCountMap[targetAuthor] || 0) + 1;
+                }
+
+                // O campo votesGiven (votos individuais) não é mais necessário,
+                // mas se o app(10).js ainda o espera, precisamos fornecê-lo (mantido vazio se não usado).
+                // Como atualizamos o app(10).js para usar votesGivenCount, a lista individual 'votesGiven' pode ser removida se quiser otimizar, mas vou mantê-la vazia aqui para garantir compatibilidade.
+            } else if (isVoteOnMyPost) {
+                // Votos que a conta RECEBEU (30 dias)
+                const key = data.voter;
+                votersMap[key] = (votersMap[key] || 0) + 1; // Conta o número de votos
+            }
+        }
+        
+        // COMENTÁRIOS
+        if (op === 'comment') {
+            const isMyComment = data.author === account;
+            const isCommentOnMyPost = data.parent_author === account;
+            
+            if (isMyComment) {
+                // Comentários que a conta DEU (30 dias)
+                const target = data.parent_author; // A quem você comentou
+                if (target !== account) { // Não conta comentários em si mesmo
+                    commentsGivenMap[target] = (commentsGivenMap[target] || 0) + 1;
+                }
+            } else if (isCommentOnMyPost && data.parent_permlink) { 
+                // Comentários que a conta RECEBEU (30 dias)
+                const commenter = data.author; // Quem comentou em você
+                if (commenter !== account) { // Não conta comentários em si mesmo
+                    commentersMap[commenter] = (commentersMap[commenter] || 0) + 1;
+                }
+            }
+        }
+    });
+    
+    log(`Votos dados (7d, contagem): ${Object.keys(votesGivenCountMap).length} alvos.`);
+    log(`Votos recebidos: ${Object.keys(votersMap).length} pessoas.`);
+
+
+    // 2. Transforma mapas em listas ordenadas (Top 10)
+    
+    // VOTOS DADOS (7 DIAS)
+    const sortedVotesGivenCount = Object.entries(votesGivenCountMap)
+        .map(([author, count]) => ({ author, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10); // Top 10
+
+    // VOTANTES (30 DIAS)
+    const sortedVoters = Object.entries(votersMap)
+        .map(([voter, count]) => ({ voter, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10); // Top 10
+
+    // COMENTÁRIOS DADOS (30 DIAS)
+    const sortedCommentsGiven = Object.entries(commentsGivenMap)
+        .map(([target, count]) => ({ target, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+    // COMMENTERS (30 DIAS)
+    const sortedCommenters = Object.entries(commentersMap)
+        .map(([commenter, count]) => ({ commenter, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+    return { 
+        votesGivenCount: sortedVotesGivenCount, // Novo e agregado
+        voters: sortedVoters, 
+        commentsGiven: sortedCommentsGiven, 
+        commenters: sortedCommenters,
+        // Mantém 'votesGiven' como um array vazio para não quebrar a interface que ainda pode esperar ele
+        votesGiven: [], 
+    };
 }
