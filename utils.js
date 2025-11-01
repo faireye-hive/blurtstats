@@ -32,12 +32,12 @@ const langToCurrencyCodeMap = {
  * Mapeia o código da moeda para o seu símbolo de exibição comum.
  */
 const currencyCodeToSymbolMap = {
-    USD: ' $ ',
-    EUR: ' € ',
-    BRL: ' R$ ',
-    PLN: ' zł ', // Símbolo para Złoty Polonês
-    JPY: ' ¥ ',
-    CNY: ' ¥ ',
+    USD: ' $',
+    EUR: ' €',
+    BRL: ' R$',
+    PLN: ' zł', // Símbolo para Złoty Polonês
+    JPY: ' ¥',
+    CNY: ' ¥',
     // Adicione mais moedas se necessário, ex: 'CAD': 'C$'
 };
 

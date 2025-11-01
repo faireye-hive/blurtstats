@@ -157,10 +157,10 @@ async function fetchAndRender() {
         if (votingPowerEl) votingPowerEl.textContent = stats.votingPower.toFixed(2) + ' %';
         
         const blurtPowerEl = $('blurtPower');
-        if (blurtPowerEl) blurtPowerEl.textContent = stats.blurtPower.toFixed(3) + ' ' + getTranslation('BLURT');
+        if (blurtPowerEl) blurtPowerEl.textContent = stats.blurtPower.toFixed(0) + ' ' + getTranslation('BLURT');
         
         const blurtLiquidEl = $('blurtLiquid');
-        if (blurtLiquidEl) blurtLiquidEl.textContent = stats.blurtLiquid.toFixed(3) + ' ' + getTranslation('BLURT');
+        if (blurtLiquidEl) blurtLiquidEl.textContent = stats.blurtLiquid.toFixed(0) + ' ' + getTranslation('BLURT');
         
         const accountDisplayEl = $('accountDisplay');
         if (accountDisplayEl) accountDisplayEl.textContent = account;
@@ -171,14 +171,14 @@ async function fetchAndRender() {
         const totalCuration = Object.values(daysMapCuration).reduce((a, b) => a + b, 0);
         const totalAuthor = Object.values(daysMapAuthor).reduce((a, b) => a + b, 0);
 
-        $('totalCuration').textContent = totalCuration.toFixed(3) + ' ' + getTranslation('BLURT') + symbol+ (totalCuration*blurtPriceUsd).toFixed(4);
-        $('totalAuthor').textContent = totalAuthor.toFixed(3) + ' ' + getTranslation('BLURT') + symbol+ (totalAuthor*blurtPriceUsd).toFixed(4);
+        $('totalCuration').textContent = totalCuration.toFixed(2) + ' ' + getTranslation('BLURT') + symbol+ (totalCuration*blurtPriceUsd).toFixed(3);
+        $('totalAuthor').textContent = totalAuthor.toFixed(2) + ' ' + getTranslation('BLURT') + symbol+ (totalAuthor*blurtPriceUsd).toFixed(3);
 
         // 2. Busca e calcula recompensas pendentes
         const { pendingAuthorSum, pendingCurationEstimate, pendingCurationDailyMap } = await getPendingRewards(account, rpc, postLimit);
 
-        $('pendingAuthor').textContent = pendingAuthorSum.toFixed(3) + ' ' + getTranslation('BLURT') + symbol+ (pendingAuthorSum*blurtPriceUsd).toFixed(4);
-        $('pendingCuration').textContent = pendingCurationEstimate.toFixed(3) + ' ' + getTranslation('BLURT (estim. total)') + symbol+ (pendingCurationEstimate*blurtPriceUsd).toFixed(4);
+        $('pendingAuthor').textContent = pendingAuthorSum.toFixed(2) + ' ' + getTranslation('BLURT') + symbol+ (pendingAuthorSum*blurtPriceUsd).toFixed(3);
+        $('pendingCuration').textContent = pendingCurationEstimate.toFixed(2) + ' ' + getTranslation('BLURT (estim. total)') + symbol+ (pendingCurationEstimate*blurtPriceUsd).toFixed(3);
         
         // 3. NOVO: Cálculo do APR
         const principal = stats.blurtPower; // Blurt Power (Passo 0)
