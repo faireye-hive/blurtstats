@@ -258,20 +258,13 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
     const nowMs = Date.now();
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
     const minTimeMs = nowMs - sevenDaysMs;
-    const historyLimit = 1000;
-
-    //const history = await rpcCall(rpc, 'condenser_api.get_account_history', [account, -1, historyLimit, 1]);
-
     const history = cache.allvoteFetch;
 
     log(`Ops recebidas: ${history.length}. Filtrando votos...`);
 
-    let estimatedTotalReward = 0;
-    let totalVotes = 0;
+    cache.allvotesEstimate = [];
     const recentVotes = [];
-    cache.allvotesEstimate = []; // Limpa o cache a cada execução
 
-    // NÃO usar break aqui — colecione votos dentro da janela
     for (const entry of history) {
         try {
             const op = entry[1].op[0];
@@ -279,7 +272,6 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
             const ts = entry[1].timestamp;
             const opTimeMs = new Date(ts).getTime();
 
-            // Se for mais antigo que 7 dias, só ignora (não quebra), pois ordem pode ser antiga->nova
             if (opTimeMs < minTimeMs) continue;
 
             if (op === 'vote') {
@@ -293,76 +285,73 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
         } catch (e) { /* ignorar */ }
     }
 
-    totalVotes = recentVotes.length;
-    log(getTranslation('Votos recentes (7d) encontrados:'), totalVotes);
+    log(getTranslation('Votos recentes (7d) encontrados:'), recentVotes.length);
 
-    // Para cada voto, busca o conteúdo e os votos ativos para calcular fração por rshares
-    for (const vote of recentVotes) {
+    // Limite de chamadas simultâneas (evita sobrecarga do RPC)
+    const concurrencyLimit = 5;
+    const delay = ms => new Promise(r => setTimeout(r, ms));
+
+    let estimatedTotalReward = 0;
+
+    async function processVote(vote) {
         try {
             const content = await rpcCall(rpc, 'condenser_api.get_content', [vote.author, vote.permlink]);
-            if (!content) continue;
+            if (!content) return;
 
-            // Se não há pending payout, pula
             const pendingStr = content.pending_payout_value || '0.000 BLURT';
             const pendingVal = parseFloat(fmt(pendingStr));
-            if (pendingVal <= 0) continue;
+            if (pendingVal <= 0) return;
 
-            // pool de curadoria aproximado
-            const totalCurationPool = pendingVal * 0.50; // Aproximadamente 50% do pending payout
-
-            // pega votos ativos para calcular rshares
-            //const activeVotes = await rpcCall(rpc, 'condenser_api.get_active_votes', [vote.author, vote.permlink]);
+            const totalCurationPool = pendingVal * 0.50;
             const activeVotes = content.active_votes;
-            if (!Array.isArray(activeVotes) || activeVotes.length === 0) {
-                // sem dados de votos, adiciona uma fração conservadora (ex: 0)
-                continue;
-            }
+            if (!Array.isArray(activeVotes) || activeVotes.length === 0) return;
 
-            // soma rshares (usar valor absoluto)
             let sumRshares = 0n;
             let myRshares = 0n;
             for (const v of activeVotes) {
-                // rshares pode ser string ou número; usar BigInt para soma segura
                 const r = BigInt(v.rshares || '0');
                 sumRshares += (r < 0n ? -r : r);
                 if (v.voter === account) myRshares = (r < 0n ? -r : r);
             }
 
-            if (sumRshares === 0n || myRshares === 0n) continue;
+            if (sumRshares === 0n || myRshares === 0n) return;
 
-            // fração e recompensa estimada
             const fraction = Number(myRshares) / Number(sumRshares);
             const estimatedReward = totalCurationPool * fraction;
 
-                cache.allvotesEstimate.push({
-                    author: vote.author,
-                    permlink: vote.permlink,
-                    weight: vote.weight,
-                    timeMs: vote.timeMs,
-                    estimatedReward: estimatedReward,
-                    cashout_time: content.cashout_time,
-                    author: content.author,
-                    created: content.created,
-                    net_rshares: content.net_rshares,
-                    pending_payout_value: content.pending_payout_value,
-                    
-                });
-            estimatedTotalReward += estimatedReward;
+            cache.allvotesEstimate.push({
+                author: vote.author,
+                permlink: vote.permlink,
+                weight: vote.weight,
+                timeMs: vote.timeMs,
+                estimatedReward,
+                cashout_time: content.cashout_time,
+                author: content.author,
+                created: content.created,
+                net_rshares: content.net_rshares,
+                pending_payout_value: content.pending_payout_value,
+            });
 
+            estimatedTotalReward += estimatedReward;
         } catch (e) {
             log(`Erro ao estimar voto @${vote.author}/${vote.permlink}: ${e.message}`);
         }
     }
 
+    // Processa em blocos de "concurrencyLimit"
+    for (let i = 0; i < recentVotes.length; i += concurrencyLimit) {
+        const chunk = recentVotes.slice(i, i + concurrencyLimit);
+        await Promise.all(chunk.map(v => processVote(v)));
+        await delay(100); // pequeno intervalo entre blocos
+    }
+
     log(`${getTranslation("Estimativa de recompensa de curadoria (7d):")} ${estimatedTotalReward.toFixed(3)} BLURT`);
 
-
-    const cacheallvotesEstimate = cache.allvotesEstimate;
-
-
-    return { estimatedTotalReward, cacheallvotesEstimate,  };
+    return { 
+        estimatedTotalReward, 
+        cacheallvotesEstimate: cache.allvotesEstimate 
+    };
 }
-
 
 
 

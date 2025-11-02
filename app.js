@@ -119,7 +119,7 @@ async function fetchAndRender() {
         rpc = $('rpcCustomInput').value.trim();
     }
     
-    const postLimit = parseInt($('postLimit').value, 10) || 100;
+    const postLimit = 100;
 
     const moedaSelecionada = currentCurrency;
     
