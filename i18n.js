@@ -315,14 +315,14 @@ export const translations = {
     },
 
     // CONFIG & DETALHES
-    'Config & detalhes': { 
-        'en': 'Config & Details',
-        'pl': 'Konfiguracja i Szczegóły',
-        'de': 'Konfiguration & Details',
-        'zh': '配置和详情',
-        'es': 'Configuración y Detalles',
-        'fr': 'Config. & Détails',
-        'ja': '設定と詳細',
+    'Exportar CSV': { 
+        'en': 'Exportar CSV',
+        'pl': 'Exportar CSV',
+        'de': 'Exportar CSV',
+        'zh': 'Exportar CSV',
+        'es': 'Exportar CSV',
+        'fr': 'Exportar CSV',
+        'ja': 'Exportar CSV',
     },
     'Opções e notas técnicas': { 
         'en': 'Options and technical notes',

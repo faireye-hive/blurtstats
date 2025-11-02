@@ -779,3 +779,19 @@ export async function getCurrencyRateByLanguage(lang) {
     return null;
   }
 }
+
+export function clearInternalCache() {
+    // Estas são as chaves no objeto 'cache' que armazenam dados da blockchain/posts
+    cache.allastFetch = [];
+    cache.allvoteFetch = [];
+    cache.allauthorFetch = [];
+    cache.allcurationFetch = [];
+    cache.TotalPedingResultPost = [];
+    cache.TotalPedingResultComment = [];
+    cache.allvotesEstimate = [];
+    
+    // Opcional: Se 'vestingSharePrice' for cacheador, você pode limpá-lo aqui
+    // cache.vestingSharePrice = null;
+    
+    console.log('Cache interno de dados de posts limpo.');
+}
