@@ -288,7 +288,7 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
     log(getTranslation('Votos recentes (7d) encontrados:'), recentVotes.length);
 
     // Limite de chamadas simultâneas (evita sobrecarga do RPC)
-    const concurrencyLimit = 5;
+    const concurrencyLimit = 4;
     const delay = ms => new Promise(r => setTimeout(r, ms));
 
     let estimatedTotalReward = 0;
@@ -342,7 +342,7 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
     for (let i = 0; i < recentVotes.length; i += concurrencyLimit) {
         const chunk = recentVotes.slice(i, i + concurrencyLimit);
         await Promise.all(chunk.map(v => processVote(v)));
-        await delay(100); // pequeno intervalo entre blocos
+        await delay(200); // pequeno intervalo entre blocos
     }
 
     log(`${getTranslation("Estimativa de recompensa de curadoria (7d):")} ${estimatedTotalReward.toFixed(3)} BLURT`);
@@ -357,93 +357,86 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
 
 export async function getAccountHistoryLast30Days(account, rpc, limit = 1000) {
   if (!account || !rpc) {
-    throw new Error(getTranslation('Parâmetros inválidos: é necessário account, rpc e rpcCallFn (função).'));
+    throw new Error(getTranslation('Parâmetros inválidos: é necessário account e rpc.'));
   }
 
   const cutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const collected = [];
 
-  // Função recursiva interna que busca um lote começando do índice "from".
-  async function recurse(from) {
-    // Solicita o lote atual
-    const batch = await rpcCall(rpc, 'condenser_api.get_account_history', [account, from, limit]);
+  // Descobre o índice mais recente primeiro (evita buscar do -1 pra trás com tentativas)
+  const latest = await rpcCall(rpc, 'condenser_api.get_account_history', [account, -1, 1]);
+  if (!Array.isArray(latest) || latest.length === 0) return [];
 
-    if (!Array.isArray(batch) || batch.length === 0) {
-      return; // sem mais resultados
+  let latestIndex = latest[0][0];
+  log(`Último índice encontrado: ${latestIndex}`);
+
+  const concurrencyLimit = 4; // quantos blocos simultâneos
+  const step = limit;
+  let reachedCutoff = false;
+
+  while (latestIndex > 0 && !reachedCutoff) {
+    // Cria um grupo de requisições paralelas
+    const requests = [];
+    for (let i = 0; i < concurrencyLimit && latestIndex > 0; i++) {
+      const from = Math.max(0, latestIndex - step);
+      requests.push(rpcCall(rpc, 'condenser_api.get_account_history', [account, latestIndex, step]));
+      latestIndex = from - 1;
     }
 
-    // Acumula
-    collected.push(...batch);
+    // Executa em paralelo
+    const batches = await Promise.allSettled(requests);
 
-    // Determina o menor índice retornado e o timestamp mais antigo do lote
-    let minIndex = Infinity;
-    let oldestTsMs = Infinity;
-    for (const entry of batch) {
-      const idx = Number(entry[0]);
-      if (!Number.isNaN(idx) && idx < minIndex) minIndex = idx;
+    for (const batchResult of batches) {
+      if (batchResult.status !== 'fulfilled' || !Array.isArray(batchResult.value)) continue;
 
-      const ts = entry[1] && (entry[1].timestamp || entry[1].time || entry[1].created);
-      const tsMs = ts ? new Date(ts).getTime() : NaN;
-      if (!Number.isNaN(tsMs) && tsMs < oldestTsMs) oldestTsMs = tsMs;
+      const batch = batchResult.value;
+      collected.push(...batch);
+
+      // Detecta se algum item é mais antigo que 30 dias
+      for (const entry of batch) {
+        const ts = entry[1] && (entry[1].timestamp || entry[1].time || entry[1].created);
+        const tsMs = ts ? new Date(ts).getTime() : NaN;
+        if (!Number.isNaN(tsMs) && tsMs < cutoffMs) {
+          reachedCutoff = true;
+          break;
+        }
+      }
     }
 
-    // Se algum item do lote for mais antigo que o cutoff, podemos parar (já trouxemos histórico suficiente)
-    if (!Number.isNaN(oldestTsMs) && oldestTsMs < cutoffMs) {
-      return;
-    }
-
-    // Se chegamos ao início do histórico ou o lote veio menor que o limite, paramos
-    if (minIndex <= 0) {
-      return;
-    }
-
-    // Caso contrário, buscamos o próximo lote anterior ao menor índice encontrado
-    const nextFrom = minIndex - 1;
-    if (nextFrom < 0) return;
-    await recurse(nextFrom);
+    // Evita sobrecarregar o RPC
+    await new Promise(r => setTimeout(r, 200));
   }
 
-  // Inicia a recursão a partir de -1 (mais recente)
-  await recurse(-1);
-
-  // Filtra apenas entradas dentro dos últimos 30 dias
+  // Filtra os últimos 30 dias
   const filtered = collected.filter(entry => {
     const ts = entry[1] && (entry[1].timestamp || entry[1].time || entry[1].created);
     const ms = ts ? new Date(ts).getTime() : NaN;
     return !Number.isNaN(ms) && ms >= cutoffMs;
   });
 
-  // Ordena do mais novo para o mais antigo (opcional, geralmente útil)
-  filtered.sort((a, b) => new Date(b[1].timestamp || b[1].time || b[1].created).getTime()
-                       - new Date(a[1].timestamp || a[1].time || a[1].created).getTime());
+  // Ordena do mais novo para o mais antigo
+  filtered.sort((a, b) => new Date(b[1].timestamp || b[1].time || b[1].created) - new Date(a[1].timestamp || a[1].time || a[1].created));
 
+  // Classifica os tipos de operação
+  const allvotes = [];
+  const allrewardauthor = [];
+  const allrewardcuration = [];
 
-  let allvotes = [];
-  let allrewardauthor = [];
-  let allrewardcuration = [];
-
-  filtered.forEach(entry => {
-    if(entry[1].op[0] === 'vote'){
-      if(entry[1].op[1].voter === account){
-        allvotes.push(entry);
-        //entry[1].op[1]
-      }
-      else{
-      }
-    } else if(entry[1].op[0] === 'author_reward'){
-      allrewardauthor.push(entry);
-    } else if(entry[1].op[0] === 'curation_reward'){
-      allrewardcuration.push(entry);
-    }
-    else{
-    }
+  for (const entry of filtered) {
+    const op = entry[1].op?.[0];
+    const data = entry[1].op?.[1] || {};
+    if (op === 'vote' && data.voter === account) allvotes.push(entry);
+    else if (op === 'author_reward') allrewardauthor.push(entry);
+    else if (op === 'curation_reward') allrewardcuration.push(entry);
   }
-);
 
-  cache.allastFetch = filtered
+  cache.allastFetch = filtered;
   cache.allvoteFetch = allvotes;
   cache.allauthorFetch = allrewardauthor;
   cache.allcurationFetch = allrewardcuration;
+
+  log(`Histórico total coletado: ${collected.length}, últimos 30 dias: ${filtered.length}`);
+
   return filtered;
 }
 

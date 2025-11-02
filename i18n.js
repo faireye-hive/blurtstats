@@ -438,14 +438,14 @@ export const translations = {
     },
 
     // FOOTER
-    'Feito rápido — sinta-se livre para pedir ajustes (cores, fontes, algoritmo de estimativa etc.).': { 
-        'en': 'Made quickly — feel free to ask for adjustments (colors, fonts, estimate algorithm, etc.).',
-        'pl': 'Wykonane szybko — możesz śmiało prosić o poprawki (kolory, czcionki, algorytm szacowania itp.).',
-        'de': 'Schnell erstellt — Sie können gerne Anpassungen (Farben, Schriftarten, Schätzalgorithmus usw.) anfordern.',
-        'zh': '快速制作 — 随时可以提出调整要求 (颜色、字体、预估算法等)。',
-        'es': 'Hecho rápidamente — no dude en solicitar ajustes (colores, fuentes, algoritmo de estimación, etc.).',
-        'fr': 'Fait rapidement — n\'hésitez pas à demander des ajustements (couleurs, polices, algorithme d\'estimation, etc.).',
-        'ja': '素早く作成されました — 調整 (色、フォント、見積もりアルゴリズムなど) をお気軽にお申し付けください。',
+    'Criado por @bgo.': { 
+        'en': 'Created by @bgo.',
+        'pl': 'Utworzone przez @bgo',
+        'de': 'Erstellt von @bgo',
+        'zh': '由 @bgo 创建',
+        'es': 'Creado por @bgo',
+        'fr': 'Créé par @bgo',
+        'ja': '@bgo によって作成されました',
     },
 
     // STATUS E ERROS
