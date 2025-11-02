@@ -191,3 +191,8 @@ footer {
   color: var(--accent);
   text-decoration: none;
 }
+
+#rewardsChart {
+  width: 100% !important;
+  height: 100% !important;
+}

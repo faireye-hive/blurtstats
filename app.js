@@ -303,9 +303,18 @@ function renderChart(labels, authorData, curationData, pendingCurationData) {
             ]
         },
         options: { 
+            // *-- Adicionado para forçar o gráfico a ocupar 100% da largura, respeitando a altura do contêiner --*
+            responsive: true,
+            maintainAspectRatio: false, 
+            // *-- FIM das adições de responsividade --*
             scales: { y: { beginAtZero: true } }, 
             plugins: { 
-                legend: { labels: { usePointStyle: true } },
+                legend: { 
+                    labels: { usePointStyle: true },
+                    // *-- Mover a legenda para o topo ajuda a economizar espaço horizontal no mobile --*
+                    position: 'top', 
+                    align: 'start', // Alinha as legendas à esquerda
+                },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
