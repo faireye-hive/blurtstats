@@ -258,20 +258,13 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
     const nowMs = Date.now();
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
     const minTimeMs = nowMs - sevenDaysMs;
-    const historyLimit = 1000;
-
-    //const history = await rpcCall(rpc, 'condenser_api.get_account_history', [account, -1, historyLimit, 1]);
-
     const history = cache.allvoteFetch;
 
     log(`Ops recebidas: ${history.length}. Filtrando votos...`);
 
-    let estimatedTotalReward = 0;
-    let totalVotes = 0;
+    cache.allvotesEstimate = [];
     const recentVotes = [];
-    cache.allvotesEstimate = []; // Limpa o cache a cada execução
 
-    // NÃO usar break aqui — colecione votos dentro da janela
     for (const entry of history) {
         try {
             const op = entry[1].op[0];
@@ -279,7 +272,6 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
             const ts = entry[1].timestamp;
             const opTimeMs = new Date(ts).getTime();
 
-            // Se for mais antigo que 7 dias, só ignora (não quebra), pois ordem pode ser antiga->nova
             if (opTimeMs < minTimeMs) continue;
 
             if (op === 'vote') {
@@ -293,168 +285,158 @@ export async function getEstimatedCurationRewards(account, rpc, vestingPrice = 1
         } catch (e) { /* ignorar */ }
     }
 
-    totalVotes = recentVotes.length;
-    log(getTranslation('Votos recentes (7d) encontrados:'), totalVotes);
+    log(getTranslation('Votos recentes (7d) encontrados:'), recentVotes.length);
 
-    // Para cada voto, busca o conteúdo e os votos ativos para calcular fração por rshares
-    for (const vote of recentVotes) {
+    // Limite de chamadas simultâneas (evita sobrecarga do RPC)
+    const concurrencyLimit = 4;
+    const delay = ms => new Promise(r => setTimeout(r, ms));
+
+    let estimatedTotalReward = 0;
+
+    async function processVote(vote) {
         try {
             const content = await rpcCall(rpc, 'condenser_api.get_content', [vote.author, vote.permlink]);
-            if (!content) continue;
+            if (!content) return;
 
-            // Se não há pending payout, pula
             const pendingStr = content.pending_payout_value || '0.000 BLURT';
             const pendingVal = parseFloat(fmt(pendingStr));
-            if (pendingVal <= 0) continue;
+            if (pendingVal <= 0) return;
 
-            // pool de curadoria aproximado
-            const totalCurationPool = pendingVal * 0.50; // Aproximadamente 50% do pending payout
-
-            // pega votos ativos para calcular rshares
-            //const activeVotes = await rpcCall(rpc, 'condenser_api.get_active_votes', [vote.author, vote.permlink]);
+            const totalCurationPool = pendingVal * 0.50;
             const activeVotes = content.active_votes;
-            if (!Array.isArray(activeVotes) || activeVotes.length === 0) {
-                // sem dados de votos, adiciona uma fração conservadora (ex: 0)
-                continue;
-            }
+            if (!Array.isArray(activeVotes) || activeVotes.length === 0) return;
 
-            // soma rshares (usar valor absoluto)
             let sumRshares = 0n;
             let myRshares = 0n;
             for (const v of activeVotes) {
-                // rshares pode ser string ou número; usar BigInt para soma segura
                 const r = BigInt(v.rshares || '0');
                 sumRshares += (r < 0n ? -r : r);
                 if (v.voter === account) myRshares = (r < 0n ? -r : r);
             }
 
-            if (sumRshares === 0n || myRshares === 0n) continue;
+            if (sumRshares === 0n || myRshares === 0n) return;
 
-            // fração e recompensa estimada
             const fraction = Number(myRshares) / Number(sumRshares);
             const estimatedReward = totalCurationPool * fraction;
 
-                cache.allvotesEstimate.push({
-                    author: vote.author,
-                    permlink: vote.permlink,
-                    weight: vote.weight,
-                    timeMs: vote.timeMs,
-                    estimatedReward: estimatedReward,
-                    cashout_time: content.cashout_time,
-                    author: content.author,
-                    created: content.created,
-                    net_rshares: content.net_rshares,
-                    pending_payout_value: content.pending_payout_value,
-                    
-                });
-            estimatedTotalReward += estimatedReward;
+            cache.allvotesEstimate.push({
+                author: vote.author,
+                permlink: vote.permlink,
+                weight: vote.weight,
+                timeMs: vote.timeMs,
+                estimatedReward,
+                cashout_time: content.cashout_time,
+                author: content.author,
+                created: content.created,
+                net_rshares: content.net_rshares,
+                pending_payout_value: content.pending_payout_value,
+            });
 
+            estimatedTotalReward += estimatedReward;
         } catch (e) {
             log(`Erro ao estimar voto @${vote.author}/${vote.permlink}: ${e.message}`);
         }
     }
 
+    // Processa em blocos de "concurrencyLimit"
+    for (let i = 0; i < recentVotes.length; i += concurrencyLimit) {
+        const chunk = recentVotes.slice(i, i + concurrencyLimit);
+        await Promise.all(chunk.map(v => processVote(v)));
+        await delay(200); // pequeno intervalo entre blocos
+    }
+
     log(`${getTranslation("Estimativa de recompensa de curadoria (7d):")} ${estimatedTotalReward.toFixed(3)} BLURT`);
 
-
-    const cacheallvotesEstimate = cache.allvotesEstimate;
-
-
-    return { estimatedTotalReward, cacheallvotesEstimate,  };
+    return { 
+        estimatedTotalReward, 
+        cacheallvotesEstimate: cache.allvotesEstimate 
+    };
 }
-
 
 
 
 export async function getAccountHistoryLast30Days(account, rpc, limit = 1000) {
   if (!account || !rpc) {
-    throw new Error(getTranslation('Parâmetros inválidos: é necessário account, rpc e rpcCallFn (função).'));
+    throw new Error(getTranslation('Parâmetros inválidos: é necessário account e rpc.'));
   }
 
   const cutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const collected = [];
 
-  // Função recursiva interna que busca um lote começando do índice "from".
-  async function recurse(from) {
-    // Solicita o lote atual
-    const batch = await rpcCall(rpc, 'condenser_api.get_account_history', [account, from, limit]);
+  // Descobre o índice mais recente primeiro (evita buscar do -1 pra trás com tentativas)
+  const latest = await rpcCall(rpc, 'condenser_api.get_account_history', [account, -1, 1]);
+  if (!Array.isArray(latest) || latest.length === 0) return [];
 
-    if (!Array.isArray(batch) || batch.length === 0) {
-      return; // sem mais resultados
+  let latestIndex = latest[0][0];
+  log(`Último índice encontrado: ${latestIndex}`);
+
+  const concurrencyLimit = 4; // quantos blocos simultâneos
+  const step = limit;
+  let reachedCutoff = false;
+
+  while (latestIndex > 0 && !reachedCutoff) {
+    // Cria um grupo de requisições paralelas
+    const requests = [];
+    for (let i = 0; i < concurrencyLimit && latestIndex > 0; i++) {
+      const from = Math.max(0, latestIndex - step);
+      requests.push(rpcCall(rpc, 'condenser_api.get_account_history', [account, latestIndex, step]));
+      latestIndex = from - 1;
     }
 
-    // Acumula
-    collected.push(...batch);
+    // Executa em paralelo
+    const batches = await Promise.allSettled(requests);
 
-    // Determina o menor índice retornado e o timestamp mais antigo do lote
-    let minIndex = Infinity;
-    let oldestTsMs = Infinity;
-    for (const entry of batch) {
-      const idx = Number(entry[0]);
-      if (!Number.isNaN(idx) && idx < minIndex) minIndex = idx;
+    for (const batchResult of batches) {
+      if (batchResult.status !== 'fulfilled' || !Array.isArray(batchResult.value)) continue;
 
-      const ts = entry[1] && (entry[1].timestamp || entry[1].time || entry[1].created);
-      const tsMs = ts ? new Date(ts).getTime() : NaN;
-      if (!Number.isNaN(tsMs) && tsMs < oldestTsMs) oldestTsMs = tsMs;
+      const batch = batchResult.value;
+      collected.push(...batch);
+
+      // Detecta se algum item é mais antigo que 30 dias
+      for (const entry of batch) {
+        const ts = entry[1] && (entry[1].timestamp || entry[1].time || entry[1].created);
+        const tsMs = ts ? new Date(ts).getTime() : NaN;
+        if (!Number.isNaN(tsMs) && tsMs < cutoffMs) {
+          reachedCutoff = true;
+          break;
+        }
+      }
     }
 
-    // Se algum item do lote for mais antigo que o cutoff, podemos parar (já trouxemos histórico suficiente)
-    if (!Number.isNaN(oldestTsMs) && oldestTsMs < cutoffMs) {
-      return;
-    }
-
-    // Se chegamos ao início do histórico ou o lote veio menor que o limite, paramos
-    if (minIndex <= 0) {
-      return;
-    }
-
-    // Caso contrário, buscamos o próximo lote anterior ao menor índice encontrado
-    const nextFrom = minIndex - 1;
-    if (nextFrom < 0) return;
-    await recurse(nextFrom);
+    // Evita sobrecarregar o RPC
+    await new Promise(r => setTimeout(r, 200));
   }
 
-  // Inicia a recursão a partir de -1 (mais recente)
-  await recurse(-1);
-
-  // Filtra apenas entradas dentro dos últimos 30 dias
+  // Filtra os últimos 30 dias
   const filtered = collected.filter(entry => {
     const ts = entry[1] && (entry[1].timestamp || entry[1].time || entry[1].created);
     const ms = ts ? new Date(ts).getTime() : NaN;
     return !Number.isNaN(ms) && ms >= cutoffMs;
   });
 
-  // Ordena do mais novo para o mais antigo (opcional, geralmente útil)
-  filtered.sort((a, b) => new Date(b[1].timestamp || b[1].time || b[1].created).getTime()
-                       - new Date(a[1].timestamp || a[1].time || a[1].created).getTime());
+  // Ordena do mais novo para o mais antigo
+  filtered.sort((a, b) => new Date(b[1].timestamp || b[1].time || b[1].created) - new Date(a[1].timestamp || a[1].time || a[1].created));
 
+  // Classifica os tipos de operação
+  const allvotes = [];
+  const allrewardauthor = [];
+  const allrewardcuration = [];
 
-  let allvotes = [];
-  let allrewardauthor = [];
-  let allrewardcuration = [];
-
-  filtered.forEach(entry => {
-    if(entry[1].op[0] === 'vote'){
-      if(entry[1].op[1].voter === account){
-        allvotes.push(entry);
-        //entry[1].op[1]
-      }
-      else{
-      }
-    } else if(entry[1].op[0] === 'author_reward'){
-      allrewardauthor.push(entry);
-    } else if(entry[1].op[0] === 'curation_reward'){
-      allrewardcuration.push(entry);
-    }
-    else{
-    }
+  for (const entry of filtered) {
+    const op = entry[1].op?.[0];
+    const data = entry[1].op?.[1] || {};
+    if (op === 'vote' && data.voter === account) allvotes.push(entry);
+    else if (op === 'author_reward') allrewardauthor.push(entry);
+    else if (op === 'curation_reward') allrewardcuration.push(entry);
   }
-);
 
-  cache.allastFetch = filtered
+  cache.allastFetch = filtered;
   cache.allvoteFetch = allvotes;
   cache.allauthorFetch = allrewardauthor;
   cache.allcurationFetch = allrewardcuration;
+
+  log(`Histórico total coletado: ${collected.length}, últimos 30 dias: ${filtered.length}`);
+
   return filtered;
 }
 
@@ -778,4 +760,20 @@ export async function getCurrencyRateByLanguage(lang) {
     console.error("Erro ao buscar taxa de câmbio:", err);
     return null;
   }
+}
+
+export function clearInternalCache() {
+    // Estas são as chaves no objeto 'cache' que armazenam dados da blockchain/posts
+    cache.allastFetch = [];
+    cache.allvoteFetch = [];
+    cache.allauthorFetch = [];
+    cache.allcurationFetch = [];
+    cache.TotalPedingResultPost = [];
+    cache.TotalPedingResultComment = [];
+    cache.allvotesEstimate = [];
+    
+    // Opcional: Se 'vestingSharePrice' for cacheador, você pode limpá-lo aqui
+    // cache.vestingSharePrice = null;
+    
+    console.log('Cache interno de dados de posts limpo.');
 }

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title data-i18n="Blurt Rewards Dashboard">Blurt Rewards Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/modern-normalize/modern-normalize.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link href="style.css" rel="stylesheet">
 </head>
 <body>
@@ -58,6 +59,7 @@
         <input id="rpcCustomInput" style="display:none;" placeholder="https://seu-nodo-custom.com" />
         
         <button id="fetchBtn" data-i18n="Buscar">Buscar</button>
+        <button id="atBtn" class="bi bi-arrow-repeat"></button>
         <div style="margin-left:auto" class="example" data-i18n="Dica: aumente limite se tiver muitas postagens">Dica: aumente limite se tiver muitas postagens</div>
       </div>
       <div style="margin-top:8px" class="small" data-i18n="Este site usa as chamadas JSON-RPC da API &quot;condenser_api&quot; (get_account_history, get_discussions_by_blog, get_content). Configure o RPC caso o padrão não funcione.">Este site usa as chamadas JSON-RPC da API "condenser_api" (get_account_history, get_discussions_by_blog, get_content). Configure o RPC caso o padrão não funcione.</div>
@@ -165,19 +167,7 @@
     </div>
 
     <div class="card" style="margin-bottom:16px;">
-      <strong data-i18n="Config & detalhes">Config & detalhes</strong>
-      <div class="small" style="margin-top:8px" data-i18n="Opções e notas técnicas">Opções e notas técnicas</div>
-      <ol class="small" style="margin-top:10px">
-        <li data-i18n="Busca histórico de operações (get_account_history) para extrair curation_reward e author_reward.">Busca histórico de operações (get_account_history) para extrair <code>curation_reward</code> e <code>author_reward</code>.</li>
-        <li data-i18n="Busca posts recentes via get_discussions_by_blog (limit configurable) e usa get_content para ler pending_payout_value e cashout_time.">Busca posts recentes via <code>get_discussions_by_blog</code> (limit configurable) e usa <code>get_content</code> para ler <code>pending_payout_value</code> e <code>cashout_time</code>.</li>
-        <li data-i18n="Estimativa de pending curation: usa fator de curation_ratio (padrão 25%). Isso é apenas uma estimativa — cálculo real depende dos votos e regras da rede.">Estimativa de pending curation: usa fator de curation_ratio (padrão 25%). Isso é apenas uma estimativa — cálculo real depende dos votos e regras da rede.</li>
-      </ol>
-
-      <div style="margin-top:10px">
-        <label class="small" data-i18n="Limite de posts (get_discussions_by_blog)">Limite de posts (get_discussions_by_blog)</label>
-        <input id="postLimit" type="number" min="10" max="200" value="100" />
-      </div>
-
+      <strong data-i18n="Exportar CSV">Exportar CSV</strong>
       <div style="margin-top:10px"><button id="exportCsv" data-i18n="Exportar CSV (30 dias)">Exportar CSV (30 dias)</button></div>
     </div>
 
@@ -193,7 +183,7 @@
   </div>
 </div>
 
-    <footer class="small" data-i18n="Feito rápido — sinta-se livre para pedir ajustes (cores, fontes, algoritmo de estimativa etc.).">Feito rápido — sinta-se livre para pedir ajustes (cores, fontes, algoritmo de estimativa etc.).</footer>
+    <footer class="small" data-i18n="Criado por @bgo.">Criado por @bgo.</footer>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>

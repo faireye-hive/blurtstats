@@ -5,7 +5,8 @@ import {
         getAccountStats,
         getSocialInteractions,
         getBlurtPriceFromCoingecko,
-        getCurrencyRateByLanguage} from './blockchain.js'; 
+        getCurrencyRateByLanguage,
+        clearInternalCache} from './blockchain.js'; 
 import {$, fmt, log, toDateKey, getCurrencySymbolByLang } from './utils.js';
 // Importa a lógica de tradução
 import { translate, translations } from './i18n.js';
@@ -118,7 +119,7 @@ async function fetchAndRender() {
         rpc = $('rpcCustomInput').value.trim();
     }
     
-    const postLimit = parseInt($('postLimit').value, 10) || 100;
+    const postLimit = 100;
 
     const moedaSelecionada = currentCurrency;
     
@@ -157,10 +158,10 @@ async function fetchAndRender() {
         if (votingPowerEl) votingPowerEl.textContent = stats.votingPower.toFixed(2) + ' %';
         
         const blurtPowerEl = $('blurtPower');
-        if (blurtPowerEl) blurtPowerEl.textContent = stats.blurtPower.toFixed(3) + ' ' + getTranslation('BLURT');
+        if (blurtPowerEl) blurtPowerEl.textContent = stats.blurtPower.toFixed(0) + ' ' + getTranslation('BLURT');
         
         const blurtLiquidEl = $('blurtLiquid');
-        if (blurtLiquidEl) blurtLiquidEl.textContent = stats.blurtLiquid.toFixed(3) + ' ' + getTranslation('BLURT');
+        if (blurtLiquidEl) blurtLiquidEl.textContent = stats.blurtLiquid.toFixed(0) + ' ' + getTranslation('BLURT');
         
         const accountDisplayEl = $('accountDisplay');
         if (accountDisplayEl) accountDisplayEl.textContent = account;
@@ -171,14 +172,14 @@ async function fetchAndRender() {
         const totalCuration = Object.values(daysMapCuration).reduce((a, b) => a + b, 0);
         const totalAuthor = Object.values(daysMapAuthor).reduce((a, b) => a + b, 0);
 
-        $('totalCuration').textContent = totalCuration.toFixed(3) + ' ' + getTranslation('BLURT') + symbol+ (totalCuration*blurtPriceUsd).toFixed(4);
-        $('totalAuthor').textContent = totalAuthor.toFixed(3) + ' ' + getTranslation('BLURT') + symbol+ (totalAuthor*blurtPriceUsd).toFixed(4);
+        $('totalCuration').textContent = totalCuration.toFixed(2) + ' ' + getTranslation('BLURT') + symbol+ (totalCuration*blurtPriceUsd).toFixed(3);
+        $('totalAuthor').textContent = totalAuthor.toFixed(2) + ' ' + getTranslation('BLURT') + symbol+ (totalAuthor*blurtPriceUsd).toFixed(3);
 
         // 2. Busca e calcula recompensas pendentes
         const { pendingAuthorSum, pendingCurationEstimate, pendingCurationDailyMap } = await getPendingRewards(account, rpc, postLimit);
 
-        $('pendingAuthor').textContent = pendingAuthorSum.toFixed(3) + ' ' + getTranslation('BLURT') + symbol+ (pendingAuthorSum*blurtPriceUsd).toFixed(4);
-        $('pendingCuration').textContent = pendingCurationEstimate.toFixed(3) + ' ' + getTranslation('BLURT (estim. total)') + symbol+ (pendingCurationEstimate*blurtPriceUsd).toFixed(4);
+        $('pendingAuthor').textContent = pendingAuthorSum.toFixed(2) + ' ' + getTranslation('BLURT') + symbol+ (pendingAuthorSum*blurtPriceUsd).toFixed(3);
+        $('pendingCuration').textContent = pendingCurationEstimate.toFixed(2) + ' ' + getTranslation('BLURT (estim. total)') + symbol+ (pendingCurationEstimate*blurtPriceUsd).toFixed(3);
         
         // 3. NOVO: Cálculo do APR
         const principal = stats.blurtPower; // Blurt Power (Passo 0)
@@ -302,9 +303,18 @@ function renderChart(labels, authorData, curationData, pendingCurationData) {
             ]
         },
         options: { 
+            // *-- Adicionado para forçar o gráfico a ocupar 100% da largura, respeitando a altura do contêiner --*
+            responsive: true,
+            maintainAspectRatio: false, 
+            // *-- FIM das adições de responsividade --*
             scales: { y: { beginAtZero: true } }, 
             plugins: { 
-                legend: { labels: { usePointStyle: true } },
+                legend: { 
+                    labels: { usePointStyle: true },
+                    // *-- Mover a legenda para o topo ajuda a economizar espaço horizontal no mobile --*
+                    position: 'top', 
+                    align: 'start', // Alinha as legendas à esquerda
+                },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
@@ -452,6 +462,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 3. Adiciona o listener para atualizar a variável na mudança
         currencySelect.addEventListener('change', handleCurrencyChange);
+    }
+    const clearPostCacheBtn = $('atBtn'); 
+    if (clearPostCacheBtn) {
+        clearPostCacheBtn.addEventListener('click', () => {            
+               clearInternalCache();
+               fetchAndRender(); 
+        });
     }
 
     // Preenchimento inicial (limpa os campos)
