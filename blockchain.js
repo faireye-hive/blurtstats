@@ -15,6 +15,10 @@ let cache={
   vestingSharePrice: null,
 };
 
+const CONFIG = {
+  PRIMARY_API_URL: "https://api.hive-engine.com/rpc/contracts",
+};
+
 const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=blurt&vs_currencies=usd';
 const BLURT_PRICE_KEY = 'blurtPriceData'; // Chave do localStorage
 
@@ -637,8 +641,10 @@ export async function getSocialInteractions(account, rpc) {
  * * @returns {Promise<number|null>} O preço do BLURT em USD, ou null em caso de erro.
  */
 export async function getBlurtPriceFromCoingecko() {
+
     // toDateKey é importado de utils.js, então podemos usá-lo para a data de hoje (YYYY-MM-DD)
     const todayKey = toDateKey(new Date().toISOString()); 
+
     
     // 1. Tenta carregar do localStorage
     try {
@@ -657,19 +663,21 @@ export async function getBlurtPriceFromCoingecko() {
     }
     
     // 3. Se não houver cache ou for de outro dia, faz a requisição
-    log('Buscando novo preço BLURT no CoinGecko...');
+    log('Buscando novo preço BLURT no hive-engine...');
     try {
-        const response = await fetch(COINGECKO_API_URL);
-        if (!response.ok) {
-            throw new Error(`Erro HTTP: ${response.status}`);
-        }
-        
-        const json = await response.json();
+        //const response = await fetch(COINGECKO_API_URL);
+        const marketpools = await fetchData("find", "marketpools", "pools", {}, 5);
+
+        const resultado = marketpools.find(item => item.tokenPair === "SWAP.BLURT:SWAP.USDT");
+        //const price = resultado.basePrice
+
+        //const json = await response.json();
         // Extrai o preço do objeto: { blurt: { usd: 0.005 } }
-        const price = json.blurt ? json.blurt.usd : null; 
+        let price = resultado.basePrice ? resultado.basePrice : null; 
+        price = Number(price);
         
         if (typeof price === 'number' && price > 0) {
-            log('Novo preço BLURT CoinGecko:', price.toFixed(5), 'USD');
+            log('Novo preço BLURT:', price.toFixed(5), 'USD');
             
             // 4. Salva no localStorage (preço e data de hoje)
             const dataToStore = {
@@ -681,6 +689,7 @@ export async function getBlurtPriceFromCoingecko() {
             
             return price;
         } else {
+            localStorage.removeItem("blurtPriceData");
             throw new Error('Preço inválido ou não encontrado na resposta da API.');
         }
 
@@ -696,12 +705,15 @@ export async function getBlurtPriceFromCoingecko() {
                  return data.price;
             }
         }
-        
+        localStorage.removeItem("blurtPriceData");
         return null; // Retorna null se falhar a busca e não houver cache
     }
 }
 
 export async function getCurrencyRateByLanguage(lang) {
+
+
+
   const currencyMap = {
     en: 'USD', // English → Dollar
     de: 'EUR', // Deutsch → Euro
@@ -776,4 +788,67 @@ export function clearInternalCache() {
     // cache.vestingSharePrice = null;
     
     console.log('Cache interno de dados de posts limpo.');
+}
+
+async function fetchData(
+  methodName,
+  contract,
+  table,
+  query,
+  id = 1,
+  url = CONFIG.PRIMARY_API_URL,
+  limit = 1000,
+  offset = 0
+) {
+  const payload = {
+    jsonrpc: "2.0",
+    id: id,
+    method: methodName,
+    params: {
+      contract: contract,
+      table: table,
+      query: query,
+      limit: limit,
+      offset: offset,
+    },
+  };
+
+  let attempts = 0;
+  const maxAttempts = 3;
+
+  while (attempts < maxAttempts) {
+    try {
+      console.log(
+        `[REQ ${id}] Tentativa ${
+          attempts + 1
+        } de 3: Buscando ${contract}:${table} em ${url}`
+      );
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Erro de rede (${url}): ${response.status} ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error.message || JSON.stringify(data.error));
+      }
+      return data.result;
+    } catch (error) {
+      attempts++;
+      if (attempts >= maxAttempts) {
+        throw error;
+      }
+      const delay = Math.pow(2, attempts) * 1000;
+      // Exponential backoff
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
 }
